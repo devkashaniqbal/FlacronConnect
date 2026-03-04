@@ -96,7 +96,7 @@ async function generateAIResponse(
   conversationHistory: { role: 'user' | 'assistant'; content: string }[],
   userMessage: string,
 ): Promise<string> {
-  const openai = new OpenAI({ apiKey: functions.config().openai?.key })
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',

@@ -32,7 +32,7 @@ export const aiChat = functions.https.onCall(async (data, context) => {
   let response = ''
 
   if (provider === 'openai') {
-    const openai = new OpenAI({ apiKey: functions.config().openai?.key })
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: messages as Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
@@ -42,7 +42,7 @@ export const aiChat = functions.https.onCall(async (data, context) => {
   } else {
     // WatsonX — implement via IBM Cloud API
     // For now, use OpenAI as fallback
-    const openai = new OpenAI({ apiKey: functions.config().openai?.key })
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: messages as Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,

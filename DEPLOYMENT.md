@@ -46,33 +46,37 @@ Accounts needed:
 > These MUST be deployed to Firebase. They use Firestore triggers and PubSub
 > schedules that cannot run on Render.
 
-### 1.1 — Set Firebase Function Config (secrets)
+### 1.1 — Set Function Environment Variables
 
-Run these commands from the project root one by one:
+> `functions.config()` is deprecated since March 2026. We now use plain `.env` files.
 
-```bash
-firebase functions:config:set \
-  openai.key="sk-proj-YOUR_OPENAI_KEY"
+Edit `functions/.env` and fill in your real values:
 
-firebase functions:config:set \
-  stripe.secret_key="sk_test_YOUR_STRIPE_SECRET" \
-  stripe.webhook_secret="whsec_YOUR_WEBHOOK_SECRET"
+```env
+# App
+APP_URL=https://your-render-frontend.onrender.com
 
-firebase functions:config:set \
-  twilio.account_sid="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
-  twilio.auth_token="YOUR_TWILIO_AUTH_TOKEN"
+# OpenAI
+OPENAI_API_KEY=sk-proj-YOUR_OPENAI_KEY
 
-firebase functions:config:set \
-  app.url="https://YOUR-RENDER-FRONTEND-URL.onrender.com"
+# Stripe
+STRIPE_SECRET_KEY=sk_test_YOUR_STRIPE_SECRET
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 
-firebase functions:config:set \
-  brevo.api_key="YOUR_BREVO_API_KEY" \
-  brevo.from_email="noreply@yourdomain.com" \
-  brevo.from_name="FlacronControl"
+# Twilio (only if using Voice Agent feature)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=YOUR_TWILIO_AUTH_TOKEN
+
+# Brevo email (optional)
+BREVO_API_KEY=YOUR_BREVO_API_KEY
+BREVO_FROM_EMAIL=noreply@yourdomain.com
+BREVO_FROM_NAME=FlacronControl
 ```
 
-> **Note:** `app.url` is your Render frontend URL. Set it after Step 2.
-> You can update it later with the same command and redeploy functions.
+> `functions/.env` is in `.gitignore` — it is never committed to GitHub.
+> Firebase reads it automatically during `firebase deploy`.
+
+> **Note:** Update `APP_URL` after Step 2 once you have your Render frontend URL.
 
 ### 1.2 — Install & Deploy
 
@@ -337,18 +341,18 @@ OPENAI_API_KEY=sk-proj-...
 PORT=8080
 ```
 
-### Firebase Functions Config (via firebase functions:config:set)
+### Firebase Functions (`functions/.env` — never commit this file)
 
-```
-openai.key              → sk-proj-...
-stripe.secret_key       → sk_test_... or sk_live_...
-stripe.webhook_secret   → whsec_...
-twilio.account_sid      → ACxxxxxx...
-twilio.auth_token       → your_auth_token
-app.url                 → https://your-app.onrender.com
-brevo.api_key           → your_brevo_key
-brevo.from_email        → noreply@yourdomain.com
-brevo.from_name         → FlacronControl
+```env
+APP_URL=https://your-app.onrender.com
+OPENAI_API_KEY=sk-proj-...
+STRIPE_SECRET_KEY=sk_test_... or sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+TWILIO_ACCOUNT_SID=ACxxxxxx...
+TWILIO_AUTH_TOKEN=your_auth_token
+BREVO_API_KEY=your_brevo_key
+BREVO_FROM_EMAIL=noreply@yourdomain.com
+BREVO_FROM_NAME=FlacronControl
 ```
 
 ---

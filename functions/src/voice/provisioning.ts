@@ -14,8 +14,8 @@ const db = admin.firestore()
 
 function getMasterClient() {
   return twilio(
-    functions.config().twilio?.account_sid || '',
-    functions.config().twilio?.auth_token  || '',
+    process.env.TWILIO_ACCOUNT_SID || '',
+    process.env.TWILIO_AUTH_TOKEN  || '',
   )
 }
 
@@ -83,7 +83,7 @@ export const purchasePhoneNumber = functions.https.onCall(async (data, context) 
   const businessId = userDoc.data()?.businessId as string
   if (!businessId) throw new functions.https.HttpsError('not-found', 'Business not found')
 
-  const webhookBase  = functions.config().app?.url || ''
+  const webhookBase  = process.env.APP_URL || ''
   const inboundUrl   = `${webhookBase}/twilioVoiceInbound`
   const statusUrl    = `${webhookBase}/twilioCallStatus`
 

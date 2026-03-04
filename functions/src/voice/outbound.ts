@@ -38,9 +38,9 @@ export const initiateOutboundCall = functions.https.onCall(async (data, context)
   // Load Twilio sub-account for this business
   const twilioAccountDoc = await db.doc(`businesses/${businessId}/twilioAccount/config`).get()
 
-  const masterAccountSid  = functions.config().twilio?.account_sid  || ''
-  const masterAuthToken   = functions.config().twilio?.auth_token    || ''
-  const webhookBaseUrl    = functions.config().app?.url              || ''
+  const masterAccountSid  = process.env.TWILIO_ACCOUNT_SID || ''
+  const masterAuthToken   = process.env.TWILIO_AUTH_TOKEN  || ''
+  const webhookBaseUrl    = process.env.APP_URL            || ''
 
   let accountSid  = masterAccountSid
   let authToken   = masterAuthToken
