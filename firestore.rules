@@ -1,0 +1,277 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
+    }
+
+    function isSuperAdmin() {
+      let d = getUserData();
+      return d != null && d.role == 'super_admin';
+    }
+
+    function isBusinessOwner(businessId) {
+      return isAuth()
+        && exists(/databases/$(database)/documents/businesses/$(businessId))
+        && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+    }
+
+    function isBusinessMember(businessId) {
+      let d = getUserData();
+      return d != null && d.businessId == businessId;
+    }
+
+    function canAccessBusiness(businessId) {
+      return isBusinessOwner(businessId) || isBusinessMember(businessId) || isSuperAdmin();
+    }
+
+    function canWrite(businessId) {
+      return isBusinessOwner(businessId) || isSuperAdmin();
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isOwner(userId) || isSuperAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isSuperAdmin();
+    }
+
+    // ── Businesses ────────────────────────────────────────────────────────────
+    match /businesses/{businessId} {
+      allow read:   if canAccessBusiness(businessId);
+      allow create: if isAuth();
+      allow update: if canWrite(businessId);
+      allow delete: if isSuperAdmin();
+
+      // ── Core sub-collections ───────────────────────────────────────────────
+
+      match /services/{serviceId} {
+        allow read:  if true;
+        allow write: if canWrite(businessId);
+      }
+
+      match /businessHours/{dayId} {
+        allow read:  if true;
+        allow write: if canWrite(businessId);
+      }
+
+      // Bookings — public create (customer booking widget)
+      match /bookings/{bookingId} {
+        allow read:   if canAccessBusiness(businessId);
+        allow create: if true;
+        allow update: if canAccessBusiness(businessId);
+        allow delete: if canWrite(businessId);
+      }
+
+      match /employees/{employeeId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canWrite(businessId);
+      }
+
+      match /attendance/{recordId} {
+        allow read:   if canAccessBusiness(businessId);
+        allow create: if canAccessBusiness(businessId);
+        allow update: if canWrite(businessId);
+        allow delete: if canWrite(businessId);
+      }
+
+      match /payroll/{recordId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canWrite(businessId);
+      }
+
+      match /invoices/{invoiceId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canWrite(businessId);
+      }
+
+      match /notifications/{notifId} {
+        allow read:   if canAccessBusiness(businessId);
+        allow create: if isAuth();
+        allow update: if canAccessBusiness(businessId);
+        allow delete: if canWrite(businessId);
+      }
+
+      match /conversations/{convId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if isAuth();
+      }
+
+      match /categories/{catId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canWrite(businessId);
+      }
+
+      // ── Voice ──────────────────────────────────────────────────────────────
+
+      match /voiceAgents/{agentId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canWrite(businessId);
+      }
+
+      match /voiceCalls/{callId} {
+        allow read:   if canAccessBusiness(businessId);
+        allow create: if isAuth();
+        allow update: if canAccessBusiness(businessId);
+        allow delete: if canWrite(businessId);
+      }
+
+      // ── Industry-specific sub-collections ─────────────────────────────────
+
+      // Job assignments (booking ↔ employee junction)
+      match /jobAssignments/{assignId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Projects (Construction, Consulting)
+      match /projects/{projectId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Project milestones (Construction, Consulting)
+      match /milestones/{milestoneId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Equipment (Construction, Home Services)
+      match /equipment/{equipId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Tables (Restaurant)
+      match /tables/{tableId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Waitlist (Restaurant, Gym)
+      match /waitlist/{entryId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Classes (Gym)
+      match /classes/{classId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Memberships (Gym, Beauty Spa)
+      match /memberships/{membershipId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Loyalty accounts (Hair Salon, Beauty Spa, Gym)
+      match /loyaltyAccounts/{accountId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Mileage logs (Transportation)
+      match /mileageLogs/{logId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Vehicles (Transportation)
+      match /vehicles/{vehicleId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Leads (Real Estate)
+      match /leads/{leadId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Time entries (Consulting)
+      match /timeEntries/{entryId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Retainers (Consulting)
+      match /retainers/{retainerId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Patient records (Medical)
+      match /patientRecords/{recordId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Intake forms (Medical)
+      match /intakeForms/{formId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Client photos — before/after (Hair Salon, Beauty Spa)
+      match /clientPhotos/{photoId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Event timelines (Event Planning)
+      match /eventTimelines/{timelineId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Packages (Gym, Beauty Spa, Event Planning)
+      match /packages/{packageId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Package tiers (Consulting, Event Planning)
+      match /packages_tiers/{tierId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Reminder rules (Hair Salon, Beauty Spa, Medical)
+      match /reminderRules/{ruleId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+
+      // Scheduled reminders queue (Hair Salon, Beauty Spa, Medical)
+      match /scheduledReminders/{reminderId} {
+        allow read:  if canAccessBusiness(businessId);
+        allow write: if canAccessBusiness(businessId);
+      }
+    }
+
+    // ── Subscriptions (Cloud Functions write only) ────────────────────────────
+    match /subscriptions/{subId} {
+      allow read: if isAuth() && (
+        (getUserData() != null && getUserData().businessId == resource.data.businessId)
+        || isSuperAdmin()
+      );
+      allow write: if isSuperAdmin();
+    }
+  }
+}

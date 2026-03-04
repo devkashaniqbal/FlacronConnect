@@ -1,0 +1,31 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# Claude Code internal files — contain secrets, never commit
+.claude/
+
+# Firebase service account & secrets — NEVER commit these
+functions/service-account.json
+functions/.env
+functions/node_modules/
+functions/lib/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db

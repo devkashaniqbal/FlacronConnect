@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Business assets — accessible to authenticated users of that business ─
+    // Path: businesses/{businessId}/{assetType}/{filename}
+    match /businesses/{businessId}/{allPaths=**} {
+      // Any authenticated user can read (covers sharing links)
+      allow read: if isAuth();
+
+      // Only authenticated users can write (upload)
+      allow write: if isAuth()
+        && request.resource.size < 20 * 1024 * 1024   // 20 MB max
+        && (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType.matches('application/pdf') ||
+          request.resource.contentType.matches('video/.*')
+        );
+
+      allow delete: if isAuth();
+    }
+
+    // ── User avatars ────────────────────────────────────────────────────────
+    match /users/{userId}/avatar/{filename} {
+      allow read:  if isAuth();
+      allow write: if isAuth()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuth() && request.auth.uid == userId;
+    }
+  }
+}
