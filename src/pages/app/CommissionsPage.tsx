@@ -161,7 +161,24 @@ export function CommissionsPage() {
                       </span>
                     </td>
                     <td className="py-3">
-                      <Button size="sm" variant="ghost" icon={<Download size={13} />}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={<Download size={13} />}
+                        onClick={() => {
+                          const csv = [
+                            'Employee,Role,Commission Rate,Bookings,Revenue,Commission',
+                            `${row.emp.name},${row.emp.role},${row.emp.commissionRate}%,${row.bookings},${row.revenue.toFixed(2)},${row.commission.toFixed(2)}`,
+                          ].join('\n')
+                          const blob = new Blob([csv], { type: 'text/csv' })
+                          const url  = URL.createObjectURL(blob)
+                          const a    = document.createElement('a')
+                          a.href     = url
+                          a.download = `commission-${row.emp.name.replace(/\s+/g, '-').toLowerCase()}-${period.replace(/\s+/g, '-').toLowerCase()}.csv`
+                          a.click()
+                          URL.revokeObjectURL(url)
+                        }}
+                      >
                         Export
                       </Button>
                     </td>
