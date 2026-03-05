@@ -2,7 +2,8 @@
 // Manages day-of-event schedules with tasks, vendors, and time blocks
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, CalendarClock, CheckCircle2, Circle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Plus, CalendarClock, CheckCircle2, Circle, ChevronDown, ChevronUp, Trash2, Download } from 'lucide-react'
+import jsPDF from 'jspdf'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -127,7 +128,14 @@ const itemSchema = z.object({
 })
 type ItemForm = z.infer<typeof itemSchema>
 
-function TimelineItemsPanel({ timelineId }: { timelineId: string }) {
+function TimelineItemsPanel({
+  timelineId, eventName, clientName, eventDate,
+}: {
+  timelineId: string
+  eventName:  string
+  clientName: string
+  eventDate:  string
+}) {
   const { items, isLoading, addItem, updateItem, deleteItem, isAdding } = useTimelineItems(timelineId)
   const [showForm, setShowForm] = useState(false)
 
@@ -135,6 +143,73 @@ function TimelineItemsPanel({ timelineId }: { timelineId: string }) {
     resolver: zodResolver(itemSchema),
     defaultValues: { category: 'other' },
   })
+
+  function exportPDF() {
+    const doc = new jsPDF()
+    const pageW = doc.internal.pageSize.getWidth()
+
+    // Header
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text(eventName, pageW / 2, 20, { align: 'center' })
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Client: ${clientName}`, pageW / 2, 30, { align: 'center' })
+    doc.text(`Event Date: ${formatDate(eventDate, 'EEEE, MMMM d, yyyy')}`, pageW / 2, 37, { align: 'center' })
+
+    // Divider
+    doc.setLineWidth(0.4)
+    doc.line(14, 43, pageW - 14, 43)
+
+    const sorted = [...items].sort((a, b) => a.time.localeCompare(b.time))
+    const completed = sorted.filter(i => i.completed).length
+    doc.setFontSize(9)
+    doc.setTextColor(120)
+    doc.text(`${completed}/${sorted.length} items completed`, 14, 50)
+    doc.setTextColor(0)
+
+    let y = 58
+    sorted.forEach(item => {
+      if (y > 272) { doc.addPage(); y = 20 }
+
+      // Time + category badge
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(item.time, 14, y)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`[${item.category}]`, 32, y)
+      doc.setFont('helvetica', item.completed ? 'normal' : 'bold')
+      const titleText = item.completed ? `${item.title} ✓` : item.title
+      doc.text(titleText, 62, y)
+      if (item.duration) {
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(120)
+        doc.text(`${item.duration}min`, pageW - 14, y, { align: 'right' })
+        doc.setTextColor(0)
+      }
+      y += 6
+
+      if (item.notes) {
+        doc.setFontSize(8.5)
+        doc.setTextColor(100)
+        doc.text(`   Note: ${item.notes}`, 14, y)
+        doc.setTextColor(0)
+        y += 5
+      }
+      if (item.assignedTo) {
+        doc.setFontSize(8.5)
+        doc.setTextColor(80, 100, 200)
+        doc.text(`   Assigned: ${item.assignedTo}`, 14, y)
+        doc.setTextColor(0)
+        y += 5
+      }
+      y += 3
+    })
+
+    doc.save(`timeline-${eventName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+    toast.success('PDF downloaded!')
+  }
 
   async function onAdd(data: ItemForm) {
     await toast.promise(
@@ -152,9 +227,16 @@ function TimelineItemsPanel({ timelineId }: { timelineId: string }) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-ink-400 font-medium">{completed}/{items.length} completed</p>
-        <button onClick={() => setShowForm(v => !v)} className="text-xs text-brand-600 hover:underline">
-          + Add item
-        </button>
+        <div className="flex items-center gap-3">
+          {items.length > 0 && (
+            <button onClick={exportPDF} className="text-xs text-ink-500 hover:text-brand-600 flex items-center gap-1 transition-colors">
+              <Download size={11} /> Export PDF
+            </button>
+          )}
+          <button onClick={() => setShowForm(v => !v)} className="text-xs text-brand-600 hover:underline">
+            + Add item
+          </button>
+        </div>
       </div>
 
       {items.length > 0 && (
@@ -342,7 +424,12 @@ export function EventTimelinePage() {
                     className="overflow-hidden border-t border-ink-100 dark:border-ink-800"
                   >
                     <div className="p-5">
-                      <TimelineItemsPanel timelineId={timeline.id!} />
+                      <TimelineItemsPanel
+                        timelineId={timeline.id!}
+                        eventName={timeline.eventName}
+                        clientName={timeline.clientName}
+                        eventDate={timeline.eventDate}
+                      />
                     </div>
                   </motion.div>
                 )}

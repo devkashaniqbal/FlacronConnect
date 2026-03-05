@@ -2,7 +2,7 @@
 // Bronze / Silver / Gold (or custom) service tier configuration
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Layers, Check, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Layers, Check, Trash2, Edit2, UserPlus, Users } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +14,7 @@ import { SUB_COLLECTIONS } from '@/constants/firestore'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Input, Spinner } from '@/components/ui'
 import { formatCurrency } from '@/utils/formatters'
+import { useBookings } from '@/hooks/useBookings'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,36 @@ interface PackageTier {
   color:         string            // brand accent: 'amber' | 'slate' | 'yellow' | etc.
   sortOrder:     number
   createdAt?:    unknown
+}
+
+interface PackageAssignment {
+  id?:         string
+  businessId:  string
+  tierId:      string
+  tierName:    string
+  clientName:  string
+  notes?:      string
+  assignedAt?: unknown
+}
+
+function useAssignments(tierId: string) {
+  const businessId = useAuthStore(s => s.user?.businessId) ?? ''
+  const qc   = useQueryClient()
+  const path = subColPath(businessId, 'packageAssignments')
+
+  const { data: assignments = [] } = useQuery({
+    queryKey: ['packageAssignments', businessId, tierId],
+    queryFn:  () => fetchCollection<PackageAssignment>(path, [orderBy('assignedAt', 'desc')]),
+    enabled:  !!businessId && !!tierId,
+    select:   (all) => all.filter(a => a.tierId === tierId),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (data: Omit<PackageAssignment, 'id'>) => createDoc(path, { ...data, businessId }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['packageAssignments', businessId, tierId] }),
+  })
+
+  return { assignments, assign: createMutation.mutateAsync, isAssigning: createMutation.isPending }
 }
 
 function useTiers() {
@@ -100,13 +131,31 @@ const colorClasses: Record<string, string> = {
 
 export function PackageTiersPage() {
   const { tiers, isLoading, createTier, updateTier, deleteTier, isCreating } = useTiers()
-  const [showNew, setShowNew]   = useState(false)
-  const [editTier, setEditTier] = useState<PackageTier | null>(null)
+  const { bookings } = useBookings()
+  const [showNew, setShowNew]         = useState(false)
+  const [editTier, setEditTier]       = useState<PackageTier | null>(null)
+  const [assignTier, setAssignTier]   = useState<PackageTier | null>(null)
+  const [assignClient, setAssignClient] = useState('')
+  const [assignNotes, setAssignNotes] = useState('')
+
+  const { assign, isAssigning, assignments } = useAssignments(assignTier?.id ?? '')
+
+  // Unique customers from bookings
+  const customers = [...new Set(bookings.map(b => b.customerName))].sort()
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { highlighted: false, color: 'violet', sortOrder: tiers.length },
   })
+
+  async function handleAssign() {
+    if (!assignTier || !assignClient.trim()) return
+    await toast.promise(
+      assign({ tierId: assignTier.id!, tierName: assignTier.name, clientName: assignClient.trim(), notes: assignNotes, businessId: '' }),
+      { loading: 'Assigning…', success: `${assignTier.name} assigned to ${assignClient}!`, error: 'Failed' }
+    )
+    setAssignClient(''); setAssignNotes(''); setAssignTier(null)
+  }
 
   function openEdit(tier: PackageTier) {
     setEditTier(tier)
@@ -187,6 +236,9 @@ export function PackageTiersPage() {
                   {tier.tagline && <p className="text-xs text-ink-500 mt-0.5">{tier.tagline}</p>}
                 </div>
                 <div className="flex gap-1">
+                  <button onClick={() => { setAssignTier(tier); setAssignClient(''); setAssignNotes('') }} className="p-1.5 text-ink-400 hover:text-emerald-600 transition-colors" title="Assign to client">
+                    <UserPlus size={13} />
+                  </button>
                   <button onClick={() => openEdit(tier)} className="p-1.5 text-ink-400 hover:text-brand-600 transition-colors">
                     <Edit2 size={13} />
                   </button>
@@ -214,6 +266,63 @@ export function PackageTiersPage() {
         </div>
       )}
 
+      {/* ── Assign to Client Modal ── */}
+      <Modal
+        isOpen={!!assignTier}
+        onClose={() => setAssignTier(null)}
+        title={`Assign "${assignTier?.name}" to a Client`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="label">Client name</label>
+            <input
+              list="customers-list"
+              value={assignClient}
+              onChange={e => setAssignClient(e.target.value)}
+              placeholder="Type or select a client…"
+              className="input-base w-full"
+            />
+            <datalist id="customers-list">
+              {customers.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+          <div>
+            <label className="label">Notes (optional)</label>
+            <input
+              value={assignNotes}
+              onChange={e => setAssignNotes(e.target.value)}
+              placeholder="e.g. Starting Feb 2026, 3-month retainer"
+              className="input-base w-full"
+            />
+          </div>
+
+          {assignments.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <Users size={11} /> Current assignments ({assignments.length})
+              </p>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                {assignments.map(a => (
+                  <div key={a.id} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg bg-ink-50 dark:bg-ink-800">
+                    <span className="font-medium text-ink-800 dark:text-ink-200">{a.clientName}</span>
+                    {a.notes && <span className="text-xs text-ink-400 truncate max-w-[120px]">{a.notes}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <Button variant="secondary" className="flex-1" onClick={() => setAssignTier(null)}>Cancel</Button>
+            <Button className="flex-1" disabled={!assignClient.trim()} loading={isAssigning} onClick={handleAssign}>
+              Assign Client
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Create / Edit Tier Modal ── */}
       <Modal
         isOpen={showNew}
         onClose={() => { setShowNew(false); setEditTier(null); reset() }}

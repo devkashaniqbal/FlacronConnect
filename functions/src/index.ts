@@ -17,3 +17,6 @@ export * from './voice/provisioning'
 
 // Email (Brevo)
 export * from './email/brevo'
+
+// Auto-Rebooking Scheduler (runs daily at 08:00 UTC)
+export * from './autoRebook/scheduler'
