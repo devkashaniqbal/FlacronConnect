@@ -16,6 +16,11 @@ export interface AuthUser {
   industryType: IndustryType | null
   stripeCustomerId: string | null
   createdAt: Date
+  localization?: {
+    language:   string
+    currency:   string
+    dateFormat: string
+  }
 }
 
 export interface LoginCredentials {

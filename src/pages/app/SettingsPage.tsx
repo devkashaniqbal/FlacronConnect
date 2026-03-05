@@ -71,6 +71,29 @@ export function SettingsPage() {
   const { theme }              = useTheme()
   const [active, setActive]    = useState<Section>('profile')
 
+  // Localization state — load from user doc or fall back to defaults
+  const [language,   setLanguage]   = useState(user?.localization?.language   ?? 'English (US)')
+  const [currency,   setCurrency]   = useState(user?.localization?.currency   ?? 'USD — US Dollar')
+  const [dateFormat, setDateFormat] = useState(user?.localization?.dateFormat ?? 'MM/DD/YYYY')
+  const [savingLocale, setSavingLocale] = useState(false)
+
+  async function saveLocalization() {
+    setSavingLocale(true)
+    try {
+      if (user?.uid) {
+        await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+          localization: { language, currency, dateFormat },
+          updatedAt: serverTimestamp(),
+        })
+      }
+      toast.success('Localization saved')
+    } catch {
+      toast.error('Failed to save localization')
+    } finally {
+      setSavingLocale(false)
+    }
+  }
+
   // ── Profile form ──────────────────────────────────────────────────────────
   const { register: rp, handleSubmit: hp, formState: { errors: ep, isSubmitting: savingProfile } } =
     useForm<ProfileForm>({
@@ -326,7 +349,11 @@ export function SettingsPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="label">Language</label>
-                      <select className="input-base w-full">
+                      <select
+                        className="input-base w-full"
+                        value={language}
+                        onChange={e => setLanguage(e.target.value)}
+                      >
                         <option>English (US)</option>
                         <option>English (UK)</option>
                         <option>Spanish</option>
@@ -336,7 +363,11 @@ export function SettingsPage() {
                     </div>
                     <div>
                       <label className="label">Currency</label>
-                      <select className="input-base w-full">
+                      <select
+                        className="input-base w-full"
+                        value={currency}
+                        onChange={e => setCurrency(e.target.value)}
+                      >
                         <option>USD — US Dollar</option>
                         <option>EUR — Euro</option>
                         <option>GBP — British Pound</option>
@@ -346,14 +377,20 @@ export function SettingsPage() {
                     </div>
                     <div>
                       <label className="label">Date format</label>
-                      <select className="input-base w-full">
+                      <select
+                        className="input-base w-full"
+                        value={dateFormat}
+                        onChange={e => setDateFormat(e.target.value)}
+                      >
                         <option>MM/DD/YYYY</option>
                         <option>DD/MM/YYYY</option>
                         <option>YYYY-MM-DD</option>
                       </select>
                     </div>
                     <div className="flex justify-end">
-                      <Button icon={<Check size={14} />} onClick={() => toast.success('Localization saved')}>Save</Button>
+                      <Button icon={<Check size={14} />} loading={savingLocale} onClick={saveLocalization}>
+                        Save
+                      </Button>
                     </div>
                   </div>
                 </Card>

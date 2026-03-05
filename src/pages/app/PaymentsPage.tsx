@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CreditCard, TrendingUp, ArrowUpRight, ExternalLink, CheckCircle2, XCircle, Loader2, Check } from 'lucide-react'
+import { CreditCard, TrendingUp, ArrowUpRight, ExternalLink, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge, Spinner } from '@/components/ui'
 import { PLANS } from '@/constants/plans'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { useAuthStore } from '@/store/authStore'
+import { useInvoices } from '@/hooks/useInvoices'
+import { useBookings } from '@/hooks/useBookings'
 import { createCheckoutSession, createPortalSession } from '@/lib/stripe'
 import { cn } from '@/utils/cn'
 
@@ -17,6 +19,27 @@ export function PaymentsPage() {
   const [annual, setAnnual]      = useState(false)
   const [loading, setLoading]    = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const { invoices, isLoading: invLoading } = useInvoices()
+  const { bookings, isLoading: bLoading }   = useBookings()
+
+  // Real monthly revenue from paid bookings
+  const monthRevenue = bookings
+    .filter(b => b.paymentStatus === 'paid')
+    .reduce((s, b) => s + (b.amount ?? 0), 0)
+
+  // Real recent transactions from invoices (latest 5)
+  const recentTransactions = [...invoices]
+    .sort((a, b) => {
+      const ts = (v: unknown) => {
+        if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
+          return (v as { toDate: () => Date }).toDate().getTime()
+        }
+        return 0
+      }
+      return ts(b.createdAt) - ts(a.createdAt)
+    })
+    .slice(0, 5)
 
   // Handle Stripe redirect back
   useEffect(() => {
@@ -123,10 +146,13 @@ export function PaymentsPage() {
         {/* Revenue summary */}
         <Card>
           <p className="text-sm font-medium text-ink-500 dark:text-ink-400 mb-1">Monthly Revenue</p>
-          <p className="font-display font-bold text-3xl text-ink-900 dark:text-white mb-2">{formatCurrency(4280)}</p>
+          {bLoading
+            ? <div className="h-9 w-28 bg-ink-100 dark:bg-ink-800 animate-pulse rounded mb-2" />
+            : <p className="font-display font-bold text-3xl text-ink-900 dark:text-white mb-2">{formatCurrency(monthRevenue)}</p>
+          }
           <div className="flex items-center gap-1.5 text-emerald-600 mb-4">
             <TrendingUp size={14} />
-            <span className="text-sm font-medium">+18.2% vs last month</span>
+            <span className="text-sm font-medium">Paid bookings this month</span>
           </div>
           <Button
             variant="secondary"
@@ -228,7 +254,7 @@ export function PaymentsPage() {
         </div>
       </div>
 
-      {/* Recent transactions (live data placeholder) */}
+      {/* Recent transactions — from real invoices */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-ink-900 dark:text-white">Recent Transactions</h3>
@@ -236,42 +262,47 @@ export function PaymentsPage() {
             View all in Stripe →
           </Button>
         </div>
-        <div className="space-y-2">
-          {[
-            { id: 't1', desc: 'Booking Payment — Sarah Johnson', amount: 85,  date: '2026-02-17', status: 'completed' },
-            { id: 't2', desc: 'Subscription — Growth Plan',     amount: 79,  date: '2026-02-15', status: 'completed' },
-            { id: 't3', desc: 'Booking Payment — James Park',   amount: 120, date: '2026-02-14', status: 'completed' },
-            { id: 't4', desc: 'Refund — Marcus Lee',            amount: -35, date: '2026-02-13', status: 'refunded' },
-            { id: 't5', desc: 'Booking Payment — Emily Chen',   amount: 150, date: '2026-02-12', status: 'completed' },
-          ].map((t, i) => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.05 }}
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  'w-9 h-9 rounded-xl flex items-center justify-center',
-                  t.amount < 0 ? 'bg-red-100 dark:bg-red-950' : 'bg-emerald-100 dark:bg-emerald-950'
-                )}>
-                  <CreditCard size={16} className={t.amount < 0 ? 'text-red-600' : 'text-emerald-600'} />
+        {invLoading ? (
+          <div className="flex justify-center py-8"><Spinner /></div>
+        ) : recentTransactions.length === 0 ? (
+          <p className="text-center text-ink-400 py-8 text-sm">No transactions yet. Paid invoices will appear here.</p>
+        ) : (
+          <div className="space-y-2">
+            {recentTransactions.map((inv, i) => (
+              <motion.div
+                key={inv.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-100 dark:bg-emerald-950">
+                    <CreditCard size={16} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-ink-900 dark:text-white">
+                      Invoice — {inv.customerName}
+                    </p>
+                    <p className="text-xs text-ink-500">
+                      {inv.createdAt && typeof (inv.createdAt as { toDate?: () => Date }).toDate === 'function'
+                        ? formatDate((inv.createdAt as { toDate: () => Date }).toDate())
+                        : inv.dueDate ?? '—'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-ink-900 dark:text-white">{t.desc}</p>
-                  <p className="text-xs text-ink-500">{formatDate(t.date)}</p>
+                <div className="text-right">
+                  <p className="font-semibold text-sm text-emerald-600">
+                    +{formatCurrency(inv.total ?? 0)}
+                  </p>
+                  <Badge size="sm" variant={inv.status === 'paid' ? 'success' : 'warning'}>
+                    {inv.status}
+                  </Badge>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className={cn('font-semibold text-sm', t.amount < 0 ? 'text-red-500' : 'text-emerald-600')}>
-                  {t.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(t.amount))}
-                </p>
-                <Badge size="sm" variant={t.status === 'completed' ? 'success' : 'danger'}>{t.status}</Badge>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </Card>
     </DashboardShell>
   )

@@ -146,8 +146,9 @@ export function AIChatPage() {
               {suggestions.map(s => (
                 <button
                   key={s}
-                  onClick={() => { setInput(s) }}
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 hover:text-brand-600 dark:hover:text-brand-400 transition-all border border-ink-100 dark:border-ink-700"
+                  onClick={() => { sendMessage(s) }}
+                  disabled={isStreaming}
+                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 hover:text-brand-600 dark:hover:text-brand-400 transition-all border border-ink-100 dark:border-ink-700 disabled:opacity-40"
                 >
                   {s}
                 </button>

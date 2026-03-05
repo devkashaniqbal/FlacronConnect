@@ -116,7 +116,10 @@ export function ClassesPage() {
 
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" className="flex-1"
-                    onClick={() => !full && updateClass({ id: cls.id!, data: { enrolled: cls.enrolled + 1 } })}
+                    onClick={() => !full && toast.promise(
+                      updateClass({ id: cls.id!, data: { enrolled: cls.enrolled + 1 } }),
+                      { loading: 'Enrolling…', success: 'Enrolled!', error: 'Failed to enroll' }
+                    )}
                     disabled={full}>
                     + Enroll
                   </Button>

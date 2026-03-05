@@ -190,6 +190,14 @@ export function BookingPage() {
   async function onSubmit(data: FormData) {
     const emp = activeEmployees.find(e => e.id === data.assignedEmployeeId)
     const addOnTotal = selectedAddOns.reduce((s, a) => s + a.price, 0)
+
+    // Calculate endTime from service duration (default 60 min if not found)
+    const matchedService = services.find(s => s.name === data.serviceName)
+    const durationMins   = matchedService?.duration ?? 60
+    const [startH, startM] = data.startTime.split(':').map(Number)
+    const endTotalMins   = startH * 60 + startM + durationMins
+    const endTime        = `${String(Math.floor(endTotalMins / 60) % 24).padStart(2, '0')}:${String(endTotalMins % 60).padStart(2, '0')}`
+
     await toast.promise(
       createBooking({
         customerName:         data.customerName,
@@ -197,7 +205,7 @@ export function BookingPage() {
         serviceName:          data.serviceName,
         date:                 data.date,
         startTime:            data.startTime,
-        endTime:              data.startTime,
+        endTime,
         amount:               data.amount + addOnTotal,
         notes:                data.notes ?? '',
         clientNotes:          data.clientNotes,
