@@ -22,15 +22,22 @@ export async function fetchDoc<T>(path: string, id: string): Promise<T | null> {
   return { id: snap.id, ...snap.data() } as T
 }
 
+// Firestore rejects `undefined` values — strip them before writing
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as T
+}
+
 export async function createDoc<T extends DocumentData>(
   path: string,
   data: T
 ): Promise<string> {
-  const ref = await addDoc(collection(db, path), {
+  const ref = await addDoc(collection(db, path), stripUndefined({
     ...data,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  })
+  }))
   return ref.id
 }
 
@@ -39,7 +46,7 @@ export async function updateDocById(
   id: string,
   data: Partial<DocumentData>
 ): Promise<void> {
-  await updateDoc(doc(db, path, id), { ...data, updatedAt: serverTimestamp() })
+  await updateDoc(doc(db, path, id), stripUndefined({ ...data, updatedAt: serverTimestamp() }))
 }
 
 export async function deleteDocById(path: string, id: string): Promise<void> {
