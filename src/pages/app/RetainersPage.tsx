@@ -10,6 +10,7 @@ import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Input, Spinner } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { useRetainers } from '@/hooks/useRetainers'
+import { useInvoices } from '@/hooks/useInvoices'
 
 const schema = z.object({
   clientName:   z.string().min(2, 'Client name required'),
@@ -23,6 +24,7 @@ type FormData = z.infer<typeof schema>
 
 export function RetainersPage() {
   const { retainers, isLoading, createRetainer, updateRetainer, deleteRetainer, monthlyTotal, isCreating } = useRetainers()
+  const { createInvoice } = useInvoices()
   const [showNew, setShowNew] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
@@ -45,10 +47,28 @@ export function RetainersPage() {
     )
   }
 
-  async function handleGenerateInvoice(id: string, clientName: string, amount: number) {
-    // Update lastInvoiced date — actual invoice creation can be wired to useInvoices
-    await updateRetainer({ id, data: { lastInvoiced: new Date().toISOString().split('T')[0] } })
-    toast.success(`Invoice queued for ${clientName} — ${formatCurrency(amount)}`)
+  async function handleGenerateInvoice(ret: { id: string; clientName: string; clientEmail?: string; amount: number; description?: string }) {
+    const today   = new Date()
+    const dueDate = new Date(today)
+    dueDate.setDate(today.getDate() + 30)
+
+    await toast.promise(
+      Promise.all([
+        createInvoice({
+          customerName:  ret.clientName,
+          customerEmail: ret.clientEmail ?? '',
+          items: [{
+            description: ret.description || `Monthly retainer — ${today.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+            quantity:    1,
+            unitPrice:   ret.amount,
+          }],
+          dueDate: dueDate.toISOString().split('T')[0],
+          status:  'sent',
+        }),
+        updateRetainer({ id: ret.id, data: { lastInvoiced: today.toISOString().split('T')[0] } }),
+      ]),
+      { loading: 'Generating invoice…', success: `Invoice created for ${ret.clientName}!`, error: 'Failed to create invoice' }
+    )
   }
 
   async function handleDelete(id: string, name: string) {
@@ -108,7 +128,7 @@ export function RetainersPage() {
               {ret.description && <p className="text-xs text-ink-500 mb-3 line-clamp-2">{ret.description}</p>}
 
               <div className="flex gap-2 pt-2 border-t border-ink-100 dark:border-ink-800 flex-wrap">
-                <Button size="sm" variant="ghost" onClick={() => handleGenerateInvoice(ret.id!, ret.clientName, ret.amount)}>
+                <Button size="sm" variant="ghost" onClick={() => handleGenerateInvoice({ id: ret.id!, clientName: ret.clientName, clientEmail: ret.clientEmail, amount: ret.amount, description: ret.description })}>
                   Generate Invoice
                 </Button>
                 <button onClick={() => toggleActive(ret.id!, ret.active)} className="p-1.5 text-ink-400 hover:text-brand-600 transition-colors">

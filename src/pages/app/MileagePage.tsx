@@ -57,6 +57,33 @@ export function MileagePage() {
     await toast.promise(deleteMileage(id), { loading: '…', success: 'Deleted', error: 'Failed' })
   }
 
+  function exportCSV() {
+    const IRS_RATE = 0.67 // 2024 IRS standard mileage rate ($/mile)
+    const rows = [
+      ['Date', 'Driver', 'Vehicle', 'Purpose', 'Miles', 'Reimbursement ($)', 'Notes'],
+      ...logs.map(l => [
+        l.date,
+        l.driverName,
+        l.vehicleName ?? '',
+        l.tripPurpose,
+        l.distanceMiles.toFixed(1),
+        (l.distanceMiles * IRS_RATE).toFixed(2),
+        l.notes ?? '',
+      ]),
+      [],
+      ['TOTAL', '', '', '', totalMiles.toFixed(1), (totalMiles * IRS_RATE).toFixed(2), ''],
+    ]
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `mileage-log-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Mileage log exported!')
+  }
+
   const thisMonth = new Date().toISOString().slice(0, 7)
   const monthMiles = logs
     .filter(l => l.date.startsWith(thisMonth))
@@ -69,7 +96,14 @@ export function MileagePage() {
           <h2 className="font-display text-2xl font-bold text-ink-900 dark:text-white">Mileage Log</h2>
           <p className="text-ink-500 dark:text-ink-400 text-sm">{logs.length} trips recorded</p>
         </div>
-        <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>Log Trip</Button>
+        <div className="flex items-center gap-2">
+          {logs.length > 0 && (
+            <Button variant="secondary" icon={<Download size={14} />} onClick={exportCSV}>
+              Export CSV
+            </Button>
+          )}
+          <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>Log Trip</Button>
+        </div>
       </div>
 
       {/* Stats */}

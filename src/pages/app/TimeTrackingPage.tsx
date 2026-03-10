@@ -1,7 +1,7 @@
 // Time Tracking — Consulting / Agency
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Clock, DollarSign, Trash2 } from 'lucide-react'
+import { Plus, Clock, DollarSign, Trash2, FileText } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { formatDate, formatCurrency } from '@/utils/formatters'
 import { useTimeTracking } from '@/hooks/useTimeTracking'
 import { useEmployees } from '@/hooks/useEmployees'
 import { useProjects } from '@/hooks/useProjects'
+import { useInvoices } from '@/hooks/useInvoices'
 import { cn } from '@/utils/cn'
 
 const schema = z.object({
@@ -27,10 +28,12 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export function TimeTrackingPage() {
-  const { entries, isLoading, logTime, deleteEntry, totalHours, totalBillable, isCreating } = useTimeTracking()
-  const { employees } = useEmployees()
-  const { projects }  = useProjects()
-  const [showNew, setShowNew] = useState(false)
+  const { entries, isLoading, logTime, deleteEntry, updateEntry, totalHours, totalBillable, isCreating } = useTimeTracking()
+  const { employees }    = useEmployees()
+  const { projects }     = useProjects()
+  const { createInvoice } = useInvoices()
+  const [showNew, setShowNew]             = useState(false)
+  const [invoicing, setInvoicing]         = useState(false)
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -58,6 +61,38 @@ export function TimeTrackingPage() {
     await toast.promise(deleteEntry(id), { loading: '…', success: 'Deleted', error: 'Failed' })
   }
 
+  async function handleGenerateBillableInvoice() {
+    const uninvoiced = entries.filter(e => e.billable && !e.invoiced && (e.hourlyRate ?? 0) > 0)
+    if (uninvoiced.length === 0) { toast.error('No uninvoiced billable entries with a rate set'); return }
+
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 30)
+
+    // Group by clientName — use first client found as invoice customer
+    const clientName = uninvoiced[0].clientName || uninvoiced[0].employeeName || 'Client'
+
+    setInvoicing(true)
+    try {
+      await toast.promise(
+        createInvoice({
+          customerName: clientName,
+          items: uninvoiced.map(e => ({
+            description: `${e.description} (${e.date} · ${e.hours}h @ ${formatCurrency(e.hourlyRate ?? 0)}/h)`,
+            quantity:    e.hours,
+            unitPrice:   e.hourlyRate ?? 0,
+          })),
+          dueDate: dueDate.toISOString().split('T')[0],
+          status:  'sent',
+        }),
+        { loading: 'Creating invoice…', success: 'Invoice created — check Invoices page!', error: 'Failed' }
+      )
+      // Mark all included entries as invoiced
+      await Promise.all(uninvoiced.map(e => updateEntry({ id: e.id!, data: { invoiced: true } })))
+    } finally {
+      setInvoicing(false)
+    }
+  }
+
   const billableRevenue = entries.filter(e => e.billable && !e.invoiced)
     .reduce((s, e) => s + (e.hours * (e.hourlyRate ?? 0)), 0)
 
@@ -68,7 +103,19 @@ export function TimeTrackingPage() {
           <h2 className="font-display text-2xl font-bold text-ink-900 dark:text-white">Time Tracking</h2>
           <p className="text-ink-500 dark:text-ink-400 text-sm">{entries.length} entries · {totalBillable.toFixed(1)}h billable</p>
         </div>
-        <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>Log Time</Button>
+        <div className="flex items-center gap-2">
+          {billableRevenue > 0 && (
+            <Button
+              variant="secondary"
+              icon={<FileText size={14} />}
+              onClick={handleGenerateBillableInvoice}
+              loading={invoicing}
+            >
+              Invoice {formatCurrency(billableRevenue)}
+            </Button>
+          )}
+          <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>Log Time</Button>
+        </div>
       </div>
 
       {/* Stats */}
