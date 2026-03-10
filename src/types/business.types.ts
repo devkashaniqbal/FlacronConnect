@@ -14,6 +14,7 @@ export interface Business {
   phone?:       string
   email?:       string
   logo?:        string | null
+  brandColor?:  string | null   // hex e.g. '#ea580c'
   website?:     string | null
   description?: string
   plan?:        Plan

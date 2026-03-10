@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import jsPDF from 'jspdf'
 import { useAuthStore } from '@/store/authStore'
+import { useBusinessStore } from '@/store/businessStore'
 import {
   fetchCollection, createDoc, updateDocById,
   subColPath, orderBy,
@@ -8,113 +9,224 @@ import {
 import { SUB_COLLECTIONS } from '@/constants/firestore'
 import type { Invoice, InvoiceItem } from '@/types/payment.types'
 
-// PDF generation
-export function generateInvoicePDF(invoice: Invoice, businessName: string): void {
-  const doc  = new jsPDF()
-  const org  = '#ea580c'
-  const dark = '#0a0a0a'
-  const grey = '#555555'
+// ── Branding type ─────────────────────────────────────────────────────────────
+export interface InvoiceBranding {
+  businessName: string
+  brandColor?:  string | null   // hex e.g. '#ea580c'
+  logo?:        string | null   // base64 data URL or https URL
+  address?:     string | null
+  phone?:       string | null
+  email?:       string | null
+  website?:     string | null
+}
 
-  // Header bar
-  doc.setFillColor(234, 88, 12)
-  doc.rect(0, 0, 210, 28, 'F')
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(22)
-  doc.setFont('helvetica', 'bold')
-  doc.text('INVOICE', 14, 18)
+function fmtMoney(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text(businessName, 196, 12, { align: 'right' })
-  doc.text('Powered by FlacronControl', 196, 20, { align: 'right' })
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.substring(0, 2), 16)
+  const g = parseInt(clean.substring(2, 4), 16)
+  const b = parseInt(clean.substring(4, 6), 16)
+  return [isNaN(r) ? 234 : r, isNaN(g) ? 88 : g, isNaN(b) ? 12 : b]
+}
 
-  // Invoice meta
-  doc.setTextColor(dark)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Invoice #${invoice.id?.slice(-6).toUpperCase() ?? 'NEW'}`, 14, 42)
+// ── PDF generation ─────────────────────────────────────────────────────────────
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(grey)
-  doc.text(`Date: ${formatDate(invoice.createdAt)}`, 14, 50)
-  doc.text(`Due:  ${formatDate(invoice.dueDate)}`, 14, 57)
-  doc.text(`Status: ${invoice.status.toUpperCase()}`, 14, 64)
+export function generateInvoicePDF(invoice: Invoice, branding: InvoiceBranding | string): void {
+  // Accept legacy string (businessName only) or full branding object
+  const b: InvoiceBranding = typeof branding === 'string'
+    ? { businessName: branding }
+    : branding
 
-  // Bill To
-  doc.setTextColor(org)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.text('BILL TO', 130, 42)
-  doc.setTextColor(dark)
-  doc.setFont('helvetica', 'normal')
-  doc.text(invoice.customerName, 130, 50)
-  if (invoice.customerEmail) doc.text(invoice.customerEmail, 130, 57)
+  const doc      = new jsPDF()
+  const pageW    = doc.internal.pageSize.getWidth()
+  const [cr, cg, cb] = hexToRgb(b.brandColor ?? '#ea580c')
+  const dark     = '#111111'
+  const grey     = '#666666'
+  const lightBg  = '#f9fafb'
 
-  // Line items header
-  let y = 80
-  doc.setFillColor(245, 245, 245)
-  doc.rect(14, y - 6, 182, 10, 'F')
-  doc.setTextColor(grey)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text('DESCRIPTION', 16, y)
-  doc.text('QTY', 130, y, { align: 'right' })
-  doc.text('RATE', 155, y, { align: 'right' })
-  doc.text('AMOUNT', 196, y, { align: 'right' })
+  // ── Header band ────────────────────────────────────────────────────────────
+  doc.setFillColor(cr, cg, cb)
+  doc.rect(0, 0, pageW, 36, 'F')
 
-  // Line items
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(dark)
-  y += 10
-  for (const item of invoice.items) {
-    doc.setFontSize(9)
-    doc.text(item.description, 16, y)
-    doc.text(String(item.quantity), 130, y, { align: 'right' })
-    doc.text(`$${item.unitPrice.toFixed(2)}`, 155, y, { align: 'right' })
-    doc.text(`$${(item.quantity * item.unitPrice).toFixed(2)}`, 196, y, { align: 'right' })
-    y += 8
-    if (y > 250) { doc.addPage(); y = 20 }
+  // Logo (if provided)
+  if (b.logo) {
+    try {
+      const fmt = b.logo.startsWith('data:image/png') ? 'PNG'
+                : b.logo.startsWith('data:image/svg') ? 'SVG'
+                : 'JPEG'
+      doc.addImage(b.logo, fmt, 12, 4, 28, 28)
+    } catch { /* skip if image fails */ }
   }
 
-  // Totals
-  y += 6
-  doc.setDrawColor(229, 229, 229)
-  doc.line(130, y, 196, y)
-  y += 8
+  // INVOICE label
+  const logoOffset = b.logo ? 44 : 14
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(24)
+  doc.setFont('helvetica', 'bold')
+  doc.text('INVOICE', logoOffset, 22)
 
-  doc.setFontSize(10)
-  doc.setTextColor(grey)
-  doc.text('Subtotal:', 155, y, { align: 'right' })
+  // Business info top-right
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text(b.businessName, pageW - 12, 10, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  let infoY = 17
+  if (b.address) { doc.text(b.address, pageW - 12, infoY, { align: 'right' }); infoY += 5 }
+  if (b.phone)   { doc.text(b.phone,   pageW - 12, infoY, { align: 'right' }); infoY += 5 }
+  if (b.email)   { doc.text(b.email,   pageW - 12, infoY, { align: 'right' }); infoY += 5 }
+  if (b.website) { doc.text(b.website, pageW - 12, infoY, { align: 'right' }) }
+
+  // ── Invoice meta + Bill To ─────────────────────────────────────────────────
+  let y = 48
+
+  // Left: invoice details
   doc.setTextColor(dark)
-  doc.text(`$${invoice.subtotal.toFixed(2)}`, 196, y, { align: 'right' })
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`#${invoice.id?.slice(-8).toUpperCase() ?? 'NEW'}`, 14, y)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(grey)
+  y += 7
+  doc.text(`Date issued: ${formatDate(invoice.createdAt)}`, 14, y)
+  y += 5
+  doc.text(`Due date:    ${formatDate(invoice.dueDate)}`, 14, y)
+  y += 5
+  const statusColor: Record<string, [number, number, number]> = {
+    paid:      [22, 163, 74],
+    overdue:   [220, 38, 38],
+    cancelled: [107, 114, 128],
+  }
+  const sc = statusColor[invoice.status] ?? [cr, cg, cb]
+  doc.setTextColor(...sc)
+  doc.setFont('helvetica', 'bold')
+  doc.text(invoice.status.toUpperCase(), 14, y + 5)
+
+  // Right: Bill To box
+  const boxX = 118, boxY = 42, boxW = 80, boxH = 28
+  doc.setFillColor(lightBg)
+  doc.roundedRect(boxX, boxY, boxW, boxH, 3, 3, 'F')
+  doc.setTextColor(cr, cg, cb)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.text('BILL TO', boxX + 4, boxY + 7)
+  doc.setTextColor(dark)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text(invoice.customerName, boxX + 4, boxY + 14)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.setTextColor(grey)
+  if (invoice.customerEmail) doc.text(invoice.customerEmail, boxX + 4, boxY + 21)
+
+  // ── Line items table ───────────────────────────────────────────────────────
+  y = 82
+  // Table header
+  doc.setFillColor(cr, cg, cb)
+  doc.rect(14, y - 6, pageW - 28, 11, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'bold')
+  doc.text('DESCRIPTION', 18, y)
+  doc.text('QTY',   130, y, { align: 'right' })
+  doc.text('RATE',  158, y, { align: 'right' })
+  doc.text('AMOUNT', pageW - 14, y, { align: 'right' })
+
+  // Rows
+  doc.setFont('helvetica', 'normal')
+  y += 9
+  invoice.items.forEach((item, idx) => {
+    if (y > 255) { doc.addPage(); y = 20 }
+    // Alternate row tint
+    if (idx % 2 === 0) {
+      doc.setFillColor(249, 250, 251)
+      doc.rect(14, y - 5, pageW - 28, 9, 'F')
+    }
+    doc.setTextColor(dark)
+    doc.setFontSize(8.5)
+    // Wrap long descriptions
+    const lines = doc.splitTextToSize(item.description, 100) as string[]
+    doc.text(lines[0], 18, y)
+    doc.setTextColor(grey)
+    doc.text(String(item.quantity),                   130, y, { align: 'right' })
+    doc.text(`$${fmtMoney(item.unitPrice)}`,          158, y, { align: 'right' })
+    doc.setTextColor(dark)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`$${fmtMoney(item.quantity * item.unitPrice)}`, pageW - 14, y, { align: 'right' })
+    doc.setFont('helvetica', 'normal')
+    if (lines.length > 1) {
+      y += 5
+      doc.setFontSize(7.5)
+      doc.setTextColor(grey)
+      doc.text(lines.slice(1).join(' '), 18, y)
+      doc.setFontSize(8.5)
+    }
+    y += 9
+  })
+
+  // ── Totals block ──────────────────────────────────────────────────────────
+  y += 4
+  doc.setDrawColor(230, 230, 230)
+  doc.line(120, y, pageW - 14, y)
   y += 7
 
-  if (invoice.tax > 0) {
+  const totRow = (label: string, val: string, bold = false) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(9.5)
     doc.setTextColor(grey)
-    doc.text('Tax:', 155, y, { align: 'right' })
+    doc.text(label, 158, y, { align: 'right' })
     doc.setTextColor(dark)
-    doc.text(`$${invoice.tax.toFixed(2)}`, 196, y, { align: 'right' })
+    doc.text(val, pageW - 14, y, { align: 'right' })
     y += 7
   }
 
-  // Total row
-  doc.setFillColor(234, 88, 12)
-  doc.rect(130, y - 5, 66, 12, 'F')
+  totRow('Subtotal:', `$${fmtMoney(invoice.subtotal)}`)
+  if (invoice.tax > 0) totRow('Tax (10%):', `$${fmtMoney(invoice.tax)}`)
+
+  // Total banner
+  y += 2
+  doc.setFillColor(cr, cg, cb)
+  doc.roundedRect(120, y - 6, pageW - 134, 13, 2, 2, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text('TOTAL:', 155, y + 3, { align: 'right' })
-  doc.text(`$${invoice.total.toFixed(2)}`, 196, y + 3, { align: 'right' })
+  doc.text('TOTAL DUE', 158, y + 2, { align: 'right' })
+  doc.text(`$${fmtMoney(invoice.total)}`, pageW - 14, y + 2, { align: 'right' })
 
-  // Footer
+  // ── Notes ────────────────────────────────────────────────────────────────
+  if (invoice.notes) {
+    y += 18
+    doc.setTextColor(grey)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.text('NOTES', 14, y)
+    doc.setFont('helvetica', 'normal')
+    y += 5
+    const noteLines = doc.splitTextToSize(invoice.notes, pageW - 28) as string[]
+    doc.text(noteLines, 14, y)
+  }
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  const footY = doc.internal.pageSize.getHeight() - 12
+  doc.setFillColor(248, 248, 248)
+  doc.rect(0, footY - 6, pageW, 18, 'F')
   doc.setTextColor(grey)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text('Thank you for your business!', 105, 285, { align: 'center' })
+  doc.setFontSize(7.5)
+  doc.text('Thank you for your business!', pageW / 2, footY, { align: 'center' })
+  if (b.website) doc.text(b.website, pageW / 2, footY + 5, { align: 'center' })
+  doc.setFontSize(6.5)
+  doc.setTextColor(200, 200, 200)
+  doc.text('Generated by FlacronControl', pageW - 12, footY + 5, { align: 'right' })
 
-  doc.save(`invoice-${invoice.id?.slice(-6) ?? 'new'}.pdf`)
+  doc.save(`invoice-${invoice.id?.slice(-8).toUpperCase() ?? 'NEW'}.pdf`)
 }
 
 function formatDate(d: unknown): string {
@@ -131,6 +243,7 @@ function formatDate(d: unknown): string {
 export function useInvoices() {
   const businessId  = useAuthStore(s => s.user?.businessId) ?? ''
   const businessName = useAuthStore(s => s.user?.displayName) ?? 'My Business'
+  const business    = useBusinessStore(s => s.business)
   const qc = useQueryClient()
   const path = subColPath(businessId, SUB_COLLECTIONS.INVOICES)
 
@@ -172,7 +285,15 @@ export function useInvoices() {
   })
 
   const downloadPDF = (invoice: Invoice) => {
-    generateInvoicePDF(invoice, businessName)
+    generateInvoicePDF(invoice, {
+      businessName: business?.name ?? businessName,
+      brandColor:   business?.brandColor ?? '#ea580c',
+      logo:         business?.logo,
+      address:      [business?.address, business?.city, business?.state].filter(Boolean).join(', ') || null,
+      phone:        business?.phone,
+      email:        business?.email,
+      website:      business?.website,
+    })
   }
 
   return {

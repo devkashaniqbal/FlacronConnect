@@ -12,6 +12,7 @@ export function useBookings() {
   const businessId = useAuthStore(s => s.user?.businessId) ?? ''
   const qc   = useQueryClient()
   const path = subColPath(businessId, SUB_COLLECTIONS.BOOKINGS)
+  const invoicePath = subColPath(businessId, SUB_COLLECTIONS.INVOICES)
 
   // Real-time subscription — updates immediately when Firestore changes
   const { data: bookings, isLoading } = useRealtimeCollection<Booking>(
@@ -43,8 +44,39 @@ export function useBookings() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Booking> }) =>
-      updateDocById(path, id, data),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Booking> }) => {
+      await updateDocById(path, id, data)
+
+      // Auto-create invoice when payment is marked as paid
+      if (data.paymentStatus === 'paid') {
+        const booking = bookings?.find(b => b.id === id)
+        if (booking && !booking.invoiceCreated) {
+          const dueDate = new Date()
+          const subtotal = booking.amount ?? 0
+          const tax      = Math.round(subtotal * 0.1 * 100) / 100
+          const total    = subtotal + tax
+          await createDoc(invoicePath, {
+            businessId,
+            customerName:  booking.customerName,
+            customerEmail: booking.customerEmail ?? null,
+            items: [{
+              description: booking.serviceName,
+              quantity:    1,
+              unitPrice:   subtotal,
+            }],
+            subtotal,
+            tax,
+            total,
+            dueDate:   dueDate.toISOString().split('T')[0],
+            status:    'paid' as const,
+            pdfUrl:    null,
+            notes:     `Auto-generated from booking on ${booking.date} at ${booking.startTime}`,
+          })
+          await updateDocById(path, id, { invoiceCreated: true })
+        }
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices', businessId] }),
   })
 
   const deleteMutation = useMutation({

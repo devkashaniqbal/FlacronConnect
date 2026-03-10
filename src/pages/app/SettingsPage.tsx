@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { User, Bell, Shield, CreditCard, Palette, Globe, Check } from 'lucide-react'
+import { User, Bell, Shield, CreditCard, Palette, Globe, Check, Building2, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Input } from '@/components/ui'
@@ -15,6 +15,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useTheme } from '@/hooks/useTheme'
 import { auth, db } from '@/lib/firebase'
 import { COLLECTIONS } from '@/constants/firestore'
+import { useBusinessStore } from '@/store/businessStore'
 import { cn } from '@/utils/cn'
 
 // ── Schemas ────────────────────────────────────────────────────────────────────
@@ -51,10 +52,11 @@ type NotifForm    = z.infer<typeof notifSchema>
 
 // ── Sections ───────────────────────────────────────────────────────────────────
 
-type Section = 'profile' | 'notifications' | 'security' | 'billing' | 'appearance' | 'localization'
+type Section = 'profile' | 'branding' | 'notifications' | 'security' | 'billing' | 'appearance' | 'localization'
 
 const sections: { id: Section; icon: React.ElementType; label: string }[] = [
   { id: 'profile',       icon: User,       label: 'Profile' },
+  { id: 'branding',      icon: Building2,  label: 'Branding' },
   { id: 'notifications', icon: Bell,       label: 'Notifications' },
   { id: 'security',      icon: Shield,     label: 'Security' },
   { id: 'billing',       icon: CreditCard, label: 'Billing' },
@@ -70,6 +72,48 @@ export function SettingsPage() {
   const { sidebarCollapsed, collapseSidebar } = useUIStore()
   const { theme }              = useTheme()
   const [active, setActive]    = useState<Section>('profile')
+
+  // Business branding state — loaded from businessStore
+  const business = useBusinessStore(s => s.business)
+  const [brandName,    setBrandName]    = useState(business?.name        ?? '')
+  const [brandColor,   setBrandColor]   = useState(business?.brandColor  ?? '#ea580c')
+  const [brandLogo,    setBrandLogo]    = useState<string>(business?.logo ?? '')
+  const [brandAddress, setBrandAddress] = useState(business?.address     ?? '')
+  const [brandPhone,   setBrandPhone]   = useState(business?.phone       ?? '')
+  const [brandEmail,   setBrandEmail]   = useState(business?.email       ?? '')
+  const [brandWebsite, setBrandWebsite] = useState(business?.website     ?? '')
+  const [savingBrand,  setSavingBrand]  = useState(false)
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 500_000) { toast.error('Logo must be under 500 KB'); return }
+    const reader = new FileReader()
+    reader.onload = ev => setBrandLogo(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function saveBranding() {
+    if (!user?.businessId) { toast.error('No business found'); return }
+    setSavingBrand(true)
+    try {
+      await updateDoc(doc(db, COLLECTIONS.BUSINESSES, user.businessId), {
+        name:       brandName.trim() || business?.name,
+        brandColor: brandColor,
+        logo:       brandLogo || null,
+        address:    brandAddress,
+        phone:      brandPhone,
+        email:      brandEmail,
+        website:    brandWebsite,
+        updatedAt:  serverTimestamp(),
+      })
+      toast.success('Branding saved — invoices will now use your brand')
+    } catch {
+      toast.error('Failed to save branding')
+    } finally {
+      setSavingBrand(false)
+    }
+  }
 
   // Localization state — load from user doc or fall back to defaults
   const [language,   setLanguage]   = useState(user?.localization?.language   ?? 'English (US)')
@@ -228,6 +272,141 @@ export function SettingsPage() {
                       <Button type="submit" loading={savingProfile} icon={<Check size={14} />}>Save changes</Button>
                     </div>
                   </form>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ── Branding ── */}
+            {active === 'branding' && (
+              <motion.div key="branding" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+                <Card>
+                  <h3 className="font-semibold text-ink-900 dark:text-white mb-1">Business Branding</h3>
+                  <p className="text-xs text-ink-400 mb-5">This information appears on all invoices, receipts, and PDFs</p>
+
+                  <div className="space-y-4">
+                    {/* Logo upload */}
+                    <div>
+                      <label className="label">Business Logo</label>
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-20 h-20 rounded-2xl border-2 border-dashed border-ink-200 dark:border-ink-700 flex items-center justify-center overflow-hidden bg-ink-50 dark:bg-ink-800 flex-shrink-0"
+                          style={{ borderColor: brandLogo ? brandColor : undefined }}
+                        >
+                          {brandLogo
+                            ? <img src={brandLogo} alt="Logo" className="w-full h-full object-contain p-1" />
+                            : <Building2 size={28} className="text-ink-300" />
+                          }
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer w-fit px-3 py-2 rounded-xl border border-ink-200 dark:border-ink-700 text-sm text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors">
+                            <Upload size={14} />
+                            Upload logo (PNG/JPG, max 500 KB)
+                            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
+                          </label>
+                          {brandLogo && (
+                            <button onClick={() => setBrandLogo('')} className="text-xs text-red-500 hover:underline">Remove logo</button>
+                          )}
+                          <p className="text-xs text-ink-400">Or paste a URL:</p>
+                          <input
+                            type="url"
+                            value={brandLogo.startsWith('data:') ? '' : brandLogo}
+                            onChange={e => setBrandLogo(e.target.value)}
+                            placeholder="https://example.com/logo.png"
+                            className="input-base w-full text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Brand color */}
+                    <div>
+                      <label className="label">Brand Colour</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={brandColor}
+                          onChange={e => setBrandColor(e.target.value)}
+                          className="w-12 h-10 rounded-xl border border-ink-200 dark:border-ink-700 cursor-pointer p-0.5 bg-transparent"
+                        />
+                        <input
+                          type="text"
+                          value={brandColor}
+                          onChange={e => setBrandColor(e.target.value)}
+                          placeholder="#ea580c"
+                          className="input-base w-32 font-mono text-sm"
+                        />
+                        <div
+                          className="flex-1 h-10 rounded-xl flex items-center justify-center text-white text-xs font-semibold shadow-sm"
+                          style={{ backgroundColor: brandColor }}
+                        >
+                          Invoice Header Preview
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Business details */}
+                    <Input label="Business name (on invoices)" value={brandName} onChange={e => setBrandName(e.target.value)} placeholder="My Business" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Phone" value={brandPhone} onChange={e => setBrandPhone(e.target.value)} placeholder="+1 555-000-0000" />
+                      <Input label="Email" type="email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} placeholder="hello@mybusiness.com" />
+                      <Input label="Address" value={brandAddress} onChange={e => setBrandAddress(e.target.value)} placeholder="123 Main St, City, State" />
+                      <Input label="Website" value={brandWebsite} onChange={e => setBrandWebsite(e.target.value)} placeholder="https://mybusiness.com" />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex justify-end">
+                    <Button icon={<Check size={14} />} loading={savingBrand} onClick={saveBranding}>
+                      Save Branding
+                    </Button>
+                  </div>
+                </Card>
+
+                {/* Live preview */}
+                <Card>
+                  <h3 className="font-semibold text-ink-900 dark:text-white mb-3 text-sm">Invoice Preview</h3>
+                  <div className="rounded-xl overflow-hidden border border-ink-100 dark:border-ink-800 text-xs font-mono">
+                    <div className="p-4 text-white flex items-center justify-between" style={{ backgroundColor: brandColor }}>
+                      <div className="flex items-center gap-3">
+                        {brandLogo && <img src={brandLogo} alt="logo" className="h-8 w-8 object-contain rounded bg-white/20 p-0.5" />}
+                        <span className="font-bold text-base">INVOICE</span>
+                      </div>
+                      <div className="text-right text-white/80">
+                        <p className="font-semibold text-white">{brandName || 'Business Name'}</p>
+                        {brandPhone && <p>{brandPhone}</p>}
+                        {brandEmail && <p>{brandEmail}</p>}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-ink-900 flex justify-between">
+                      <div>
+                        <p className="font-bold text-ink-900 dark:text-white">Invoice #ABC123</p>
+                        <p className="text-ink-500">Date: {new Date().toLocaleDateString()}</p>
+                        <p className="text-ink-500">Due: {new Date(Date.now() + 30*86400000).toLocaleDateString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold" style={{ color: brandColor }}>BILL TO</p>
+                        <p className="text-ink-700 dark:text-ink-300">John Smith</p>
+                        <p className="text-ink-500">john@example.com</p>
+                      </div>
+                    </div>
+                    <div className="px-4 pb-4 bg-white dark:bg-ink-900">
+                      <div className="rounded-lg overflow-hidden border border-ink-100 dark:border-ink-800">
+                        <div className="grid grid-cols-4 px-3 py-2 text-ink-500" style={{ backgroundColor: brandColor + '18' }}>
+                          <span className="col-span-2 font-semibold">Description</span>
+                          <span className="text-center font-semibold">Qty</span>
+                          <span className="text-right font-semibold">Amount</span>
+                        </div>
+                        <div className="grid grid-cols-4 px-3 py-2 border-t border-ink-100 dark:border-ink-800">
+                          <span className="col-span-2 text-ink-700 dark:text-ink-300">Hair Cut &amp; Style</span>
+                          <span className="text-center text-ink-500">1</span>
+                          <span className="text-right font-bold text-ink-900 dark:text-white">$85.00</span>
+                        </div>
+                        <div className="grid grid-cols-4 px-3 py-2 border-t text-white font-bold" style={{ backgroundColor: brandColor }}>
+                          <span className="col-span-3">TOTAL</span>
+                          <span className="text-right">$85.00</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </Card>
               </motion.div>
             )}

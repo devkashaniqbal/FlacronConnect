@@ -57,6 +57,7 @@ export interface Booking {
   // ── Upsell / notes extensions ─────────────────────────────────────────
   clientNotes?:     string          // Private internal notes about the client
   addOns?:          { name: string; price: number }[]  // Beauty Spa upsells
+  invoiceCreated?:  boolean         // true after auto-invoice has been generated
   createdAt?:       unknown
   updatedAt?:       unknown
 }
