@@ -64,11 +64,19 @@ export function DashboardPage() {
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const todayBookings    = bookings.filter(b => b.date === today)
+  const toDateStr = (d: unknown): string => {
+    if (typeof d === 'string') return d
+    if (d && typeof (d as { toDate?: () => Date }).toDate === 'function')
+      return (d as { toDate: () => Date }).toDate().toISOString().split('T')[0]
+    if (d instanceof Date) return d.toISOString().split('T')[0]
+    return String(d ?? '')
+  }
+  const todayBookings    = bookings.filter(b => toDateStr(b.date) === today)
   const confirmedToday   = todayBookings.filter(b => b.status === 'confirmed')
   const pendingToday     = todayBookings.filter(b => b.status === 'pending')
+  const currentMonth     = today.slice(0, 7)
   const monthRevenue     = bookings
-    .filter(b => b.paymentStatus === 'paid')
+    .filter(b => b.paymentStatus === 'paid' && toDateStr(b.date).startsWith(currentMonth))
     .reduce((s, b) => s + (b.amount ?? 0), 0)
   const activeEmployees  = employees.filter(e => e.activeStatus).length
 
@@ -78,7 +86,7 @@ export function DashboardPage() {
     d.setDate(d.getDate() - (6 - i))
     const key = d.toISOString().split('T')[0]
     const rev = bookings
-      .filter(b => b.date === key && b.paymentStatus === 'paid')
+      .filter(b => toDateStr(b.date) === key && b.paymentStatus === 'paid')
       .reduce((s, b) => s + (b.amount ?? 0), 0)
     return {
       month: d.toLocaleDateString('en', { weekday: 'short' }),

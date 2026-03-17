@@ -12,6 +12,7 @@ import { LoginPage }             from '@/pages/auth/LoginPage'
 import { SignupPage }            from '@/pages/auth/SignupPage'
 import { ForgotPasswordPage }    from '@/pages/auth/ForgotPasswordPage'
 import { NotFoundPage }          from '@/pages/404Page'
+import { InvoiceViewPage }       from '@/pages/public/InvoiceViewPage'
 
 // Pages — app (core)
 import { DashboardPage }         from '@/pages/app/DashboardPage'
@@ -23,6 +24,7 @@ import { AttendancePage }        from '@/pages/app/AttendancePage'
 import { PayrollPage }           from '@/pages/app/PayrollPage'
 import { PaymentsPage }          from '@/pages/app/PaymentsPage'
 import { InvoicesPage }          from '@/pages/app/InvoicesPage'
+import { AnalyticsPage }         from '@/pages/app/AnalyticsPage'
 import { VoiceAgentPage }        from '@/pages/app/VoiceAgentPage'
 import { NotificationsPage }     from '@/pages/app/NotificationsPage'
 import { SettingsPage }          from '@/pages/app/SettingsPage'
@@ -74,6 +76,9 @@ function AppContent() {
       <Route path={ROUTES.SIGNUP}          element={<SignupPage />} />
       <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
 
+      {/* Public invoice view */}
+      <Route path={ROUTES.INVOICE_VIEW} element={<InvoiceViewPage />} />
+
       {/* Protected app routes */}
       <Route path="/app" element={<ProtectedRoute><Navigate to={ROUTES.DASHBOARD} replace /></ProtectedRoute>} />
       <Route path={ROUTES.DASHBOARD}       element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
@@ -85,6 +90,7 @@ function AppContent() {
       <Route path={ROUTES.PAYROLL}         element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
       <Route path={ROUTES.PAYMENTS}        element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
       <Route path={ROUTES.INVOICES}        element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
+      <Route path={ROUTES.ANALYTICS}       element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
       <Route path={ROUTES.VOICE_AGENT}      element={<ProtectedRoute><VoiceAgentPage /></ProtectedRoute>} />
       <Route path={ROUTES.NOTIFICATIONS}   element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path={ROUTES.SETTINGS}        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

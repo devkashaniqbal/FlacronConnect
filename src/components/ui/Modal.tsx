@@ -43,12 +43,12 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
             onClick={onClose}
           />
           <motion.div
@@ -57,7 +57,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
             className={cn(
-              'relative w-full card p-0 overflow-hidden z-10',
+              'relative w-full card p-0 z-10 my-auto',
               sizes[size],
               className
             )}

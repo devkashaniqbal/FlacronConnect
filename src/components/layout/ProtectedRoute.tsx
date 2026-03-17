@@ -12,7 +12,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const { user, isLoading, isInitialized } = useAuthStore()
   const location = useLocation()
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized || isLoading || (user && !user.businessId)) {
     return <div className="min-h-screen bg-white dark:bg-ink-950 flex items-center justify-center"><PageSpinner /></div>
   }
 

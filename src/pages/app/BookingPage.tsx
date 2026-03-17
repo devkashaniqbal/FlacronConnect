@@ -16,7 +16,8 @@ import { cn } from '@/utils/cn'
 import { useBookings } from '@/hooks/useBookings'
 import { useEmployees } from '@/hooks/useEmployees'
 import { useBusiness } from '@/hooks/useBusiness'
-import { useIndustryFeature } from '@/hooks/useIndustryTemplate'
+import { useIndustryFeature, useIndustryTemplate } from '@/hooks/useIndustryTemplate'
+import type { IndustryType } from '@/types/industry.types'
 import { RecurrencePicker } from '@/components/common/RecurrencePicker'
 import type { Booking, BookingRecurrence } from '@/types/booking.types'
 
@@ -151,6 +152,100 @@ function BookingCalendar({ bookings, onSelectSlot }: { bookings: Booking[]; onSe
   )
 }
 
+// ── Industry-specific booking copy ────────────────────────────────────────────
+interface BookingCopy {
+  customerLabel:      string
+  customerPlaceholder: string
+  serviceLabel:       string
+  servicePlaceholder: string
+  amountPlaceholder:  string
+  notesPlaceholder:   string
+  phoneLabel:         string
+  bookingTitle:       string
+}
+
+const INDUSTRY_COPY: Partial<Record<IndustryType, BookingCopy>> = {
+  hair_salon: {
+    customerLabel: 'Client name', customerPlaceholder: 'Sarah Johnson',
+    serviceLabel: 'Service', servicePlaceholder: 'Haircut & Style',
+    amountPlaceholder: '65', notesPlaceholder: 'Hair type, color preference…',
+    phoneLabel: 'Phone', bookingTitle: 'New Appointment',
+  },
+  beauty_spa: {
+    customerLabel: 'Guest name', customerPlaceholder: 'Emily Davis',
+    serviceLabel: 'Treatment', servicePlaceholder: 'Deep Tissue Massage',
+    amountPlaceholder: '120', notesPlaceholder: 'Pressure preference, allergies…',
+    phoneLabel: 'Phone', bookingTitle: 'New Appointment',
+  },
+  gym_fitness: {
+    customerLabel: 'Member name', customerPlaceholder: 'Alex Turner',
+    serviceLabel: 'Session type', servicePlaceholder: 'Personal Training Session',
+    amountPlaceholder: '80', notesPlaceholder: 'Fitness goals, injuries…',
+    phoneLabel: 'Phone', bookingTitle: 'New Session',
+  },
+  medical_clinic: {
+    customerLabel: 'Patient name', customerPlaceholder: 'John Smith',
+    serviceLabel: 'Appointment type', servicePlaceholder: 'General Consultation',
+    amountPlaceholder: '150', notesPlaceholder: 'Reason for visit, symptoms…',
+    phoneLabel: 'Contact number', bookingTitle: 'New Appointment',
+  },
+  restaurant: {
+    customerLabel: 'Guest name', customerPlaceholder: 'Michael Brown',
+    serviceLabel: 'Reservation type', servicePlaceholder: 'Dinner for 4',
+    amountPlaceholder: '0', notesPlaceholder: 'Dietary restrictions, occasion…',
+    phoneLabel: 'Phone', bookingTitle: 'New Reservation',
+  },
+  construction: {
+    customerLabel: 'Client name', customerPlaceholder: 'Robert Wilson',
+    serviceLabel: 'Job type', servicePlaceholder: 'Kitchen Renovation',
+    amountPlaceholder: '5000', notesPlaceholder: 'Site access, scope details…',
+    phoneLabel: 'Phone', bookingTitle: 'New Job',
+  },
+  cleaning: {
+    customerLabel: 'Client name', customerPlaceholder: 'Jennifer Lee',
+    serviceLabel: 'Service type', servicePlaceholder: 'Deep House Cleaning',
+    amountPlaceholder: '200', notesPlaceholder: 'Access code, areas to focus…',
+    phoneLabel: 'Phone', bookingTitle: 'New Booking',
+  },
+  transportation: {
+    customerLabel: 'Passenger name', customerPlaceholder: 'Carlos Rivera',
+    serviceLabel: 'Trip type', servicePlaceholder: 'Airport Transfer',
+    amountPlaceholder: '75', notesPlaceholder: 'Pickup address, flight number…',
+    phoneLabel: 'Mobile', bookingTitle: 'New Trip',
+  },
+  real_estate: {
+    customerLabel: 'Client name', customerPlaceholder: 'Amanda White',
+    serviceLabel: 'Appointment type', servicePlaceholder: 'Property Viewing',
+    amountPlaceholder: '0', notesPlaceholder: 'Property address, preferences…',
+    phoneLabel: 'Phone', bookingTitle: 'New Appointment',
+  },
+  consulting: {
+    customerLabel: 'Client name', customerPlaceholder: 'David Chen',
+    serviceLabel: 'Service', servicePlaceholder: 'Strategy Consultation',
+    amountPlaceholder: '250', notesPlaceholder: 'Meeting agenda, goals…',
+    phoneLabel: 'Phone', bookingTitle: 'New Meeting',
+  },
+  home_services: {
+    customerLabel: 'Customer name', customerPlaceholder: 'Patricia Moore',
+    serviceLabel: 'Service type', servicePlaceholder: 'HVAC Maintenance',
+    amountPlaceholder: '150', notesPlaceholder: 'Address, access instructions…',
+    phoneLabel: 'Phone', bookingTitle: 'New Job',
+  },
+  event_planning: {
+    customerLabel: 'Client name', customerPlaceholder: 'Rachel Green',
+    serviceLabel: 'Event type', servicePlaceholder: 'Wedding Consultation',
+    amountPlaceholder: '500', notesPlaceholder: 'Event date, guest count, venue…',
+    phoneLabel: 'Phone', bookingTitle: 'New Booking',
+  },
+}
+
+const DEFAULT_COPY: BookingCopy = {
+  customerLabel: 'Customer name', customerPlaceholder: 'Full name',
+  serviceLabel: 'Service', servicePlaceholder: 'Service name',
+  amountPlaceholder: '100', notesPlaceholder: 'Any special requests…',
+  phoneLabel: 'Phone', bookingTitle: 'New Booking',
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
@@ -165,6 +260,8 @@ export function BookingPage() {
   const { bookings, isLoading, createBooking, updateBooking, isCreating } = useBookings()
   const { employees } = useEmployees()
   const { services }  = useBusiness()
+  const industryTemplate = useIndustryTemplate()
+  const copy = (industryTemplate ? INDUSTRY_COPY[industryTemplate.key as IndustryType] : null) ?? DEFAULT_COPY
   const hasTips        = useIndustryFeature('tipsTracking')
   const hasAssignment  = useIndustryFeature('crewAssignment') || useIndustryFeature('driverAssignment') || useIndustryFeature('trainerAssignment') || useIndustryFeature('technicianAssignment')
   const hasDeposit     = useIndustryFeature('depositManagement')
@@ -259,7 +356,7 @@ export function BookingPage() {
               </button>
             ))}
           </div>
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowNew(true)}>New Booking</Button>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{copy.bookingTitle}</Button>
         </div>
       </div>
 
@@ -347,13 +444,13 @@ export function BookingPage() {
       )}
 
       {/* New Booking Modal */}
-      <Modal isOpen={showNew} onClose={() => setShowNew(false)} title="New Booking" size="md">
+      <Modal isOpen={showNew} onClose={() => setShowNew(false)} title={copy.bookingTitle} size="md">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Customer name" placeholder="Sarah Johnson" {...register('customerName')} error={errors.customerName?.message} />
-            <Input label="Phone (optional)" placeholder="555-0100" {...register('customerPhone')} />
-            <Input label="Service" placeholder="Hair Cut & Style" {...register('serviceName')} error={errors.serviceName?.message} />
-            <Input label="Amount ($)" type="number" step="0.01" placeholder="85" {...register('amount')} error={errors.amount?.message} />
+            <Input label={copy.customerLabel} placeholder={copy.customerPlaceholder} {...register('customerName')} error={errors.customerName?.message} />
+            <Input label={`${copy.phoneLabel} (optional)`} placeholder="555-0100" {...register('customerPhone')} />
+            <Input label={copy.serviceLabel} placeholder={copy.servicePlaceholder} {...register('serviceName')} error={errors.serviceName?.message} />
+            <Input label="Amount ($)" type="number" step="0.01" placeholder={copy.amountPlaceholder} {...register('amount')} error={errors.amount?.message} />
             <Input label="Date" type="date" {...register('date')} error={errors.date?.message} />
             <Input label="Time" type="time" {...register('startTime')} error={errors.startTime?.message} />
 
@@ -373,7 +470,7 @@ export function BookingPage() {
               </div>
             )}
           </div>
-          <Input label="Notes (optional)" placeholder="Any special requests…" {...register('notes')} />
+          <Input label="Notes (optional)" placeholder={copy.notesPlaceholder} {...register('notes')} />
           {hasClientNotes && (
             <div>
               <label className="label">Client notes (private)</label>

@@ -2,20 +2,31 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, Mail, Lock, Zap } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, Zap, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AuthLayout } from '@/features/auth/AuthLayout'
 import { Input, Button } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { loginSchema } from '@/utils/validators'
 import { ROUTES } from '@/constants/routes'
-import { isDemoMode } from '@/lib/demoMode'
+import { DEMO_ACCOUNTS } from '@/lib/demoMode'
 import type { LoginCredentials } from '@/types/auth.types'
 
 export function LoginPage() {
   const [showPass, setShowPass] = useState(false)
+  const [showAccounts, setShowAccounts] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  async function quickLogin(email: string, password: string) {
+    try {
+      await login({ email, password })
+      toast.success('Welcome back!')
+      navigate(ROUTES.DASHBOARD)
+    } catch {
+      toast.error('Quick login failed')
+    }
+  }
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
@@ -96,18 +107,41 @@ export function LoginPage() {
         </p>
       </div>
 
-      {/* Demo mode banner */}
-      {isDemoMode() && (
-        <div className="mt-6 p-4 bg-brand-50 dark:bg-brand-950/50 rounded-xl border border-brand-200 dark:border-brand-800">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={14} className="text-brand-600 dark:text-brand-400" />
-            <span className="text-xs font-semibold text-brand-700 dark:text-brand-300">Demo Mode Active</span>
-          </div>
-          <p className="text-xs text-brand-600 dark:text-brand-400">
-            Enter <strong>any email</strong> and <strong>any password</strong> (8+ chars) to explore the full app.
-          </p>
+      {/* Quick accounts panel — always visible for testing */}
+      <div className="mt-6">
+        <div className="rounded-xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAccounts(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-ink-50 dark:bg-ink-800 text-xs font-semibold text-ink-700 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-700 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Zap size={13} />
+                Quick-Login — 12 Industry Accounts (Enterprise)
+              </span>
+              {showAccounts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showAccounts && (
+              <div className="grid grid-cols-2 gap-px bg-ink-200 dark:bg-ink-700">
+                {DEMO_ACCOUNTS.map(acc => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => quickLogin(acc.email, acc.password)}
+                    className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-ink-900 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors text-left"
+                  >
+                    <span className="text-base leading-none">{acc.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-ink-800 dark:text-ink-200 truncate">{acc.businessName}</p>
+                      <p className="text-[10px] text-ink-400 truncate">{acc.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
         </div>
-      )}
+      </div>
     </AuthLayout>
   )
 }

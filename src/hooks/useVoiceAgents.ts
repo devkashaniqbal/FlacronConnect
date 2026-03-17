@@ -24,8 +24,7 @@ export function useVoiceAgents() {
       const real = await fetchCollection<VoiceAgent>(path, [orderBy('createdAt', 'desc')])
       return real.length > 0 ? real : MOCK_VOICE_AGENTS
     },
-    // Always run — even without businessId we show mock agents
-    enabled: !!user,
+    enabled: !!businessId,
   })
 
   const createMutation = useMutation({

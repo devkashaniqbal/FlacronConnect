@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Building2, Plus, Trash2, Clock, Tag, Save } from 'lucide-react'
+import { LocationPicker } from '@/components/common/LocationPicker'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Spinner } from '@/components/ui'
@@ -137,7 +138,15 @@ export function BusinessSetupPage() {
                   </div>
                   <Input label="Phone" placeholder="+1 555-0100" {...bizForm.register('phone')} />
                   <Input label="Email" type="email" placeholder="hello@mybusiness.com" {...bizForm.register('email')} />
-                  <Input label="Address" placeholder="123 Main St, City" {...bizForm.register('address')} className="sm:col-span-2" />
+                  <div className="sm:col-span-2">
+                    <LocationPicker
+                      label="Address"
+                      placeholder="Pick on map or type address…"
+                      value={bizForm.watch('address') ?? ''}
+                      onChange={v => bizForm.setValue('address', v)}
+                      error={bizForm.formState.errors.address?.message}
+                    />
+                  </div>
                   <Input label="Website" placeholder="https://mybusiness.com" {...bizForm.register('website')} />
                 </div>
                 <Textarea label="Description" placeholder="Tell customers about your business…" rows={3} {...bizForm.register('description')} />

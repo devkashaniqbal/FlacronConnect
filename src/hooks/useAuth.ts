@@ -8,7 +8,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import { useAuthStore } from '@/store/authStore'
-import { isDemoMode, DEMO_USER } from '@/lib/demoMode'
+import { isDemoMode, DEMO_USER, getDemoAccountByEmail } from '@/lib/demoMode'
 import type { AuthUser, LoginCredentials, Plan } from '@/types/auth.types'
 import type { IndustryType } from '@/types/industry.types'
 import { COLLECTIONS } from '@/constants/firestore'
@@ -40,8 +40,6 @@ export function useAuthInit() {
     if (isDemoMode()) {
       setLoading(false)
       setInitialized(true)
-      // Don't auto-login — let user click through login page
-      // but if there's already a user in the store, keep it
       return
     }
 
@@ -50,18 +48,21 @@ export function useAuthInit() {
         try {
           const snap = await getDoc(doc(db, COLLECTIONS.USERS, fbUser.uid))
           const extra = snap.exists() ? snap.data() : {}
-          // If Firestore doesn't have businessId yet (e.g. still writing),
-          // fall back to the deterministic biz_{uid} so no user ever gets null
           if (!extra.businessId) {
             extra.businessId = `biz_${fbUser.uid}`
           }
           setUser(mapFirebaseUser(fbUser, extra as Partial<AuthUser>))
         } catch {
-          // On error, still set a valid businessId so queries are scoped correctly
           setUser(mapFirebaseUser(fbUser, { businessId: `biz_${fbUser.uid}` }))
         }
       } else {
-        setUser(null)
+        // Don't wipe a persisted demo user — they have no Firebase Auth session
+        const currentUser = useAuthStore.getState().user
+        if (currentUser?.uid?.startsWith('demo-uid-')) {
+          // keep the demo user in the store
+        } else {
+          setUser(null)
+        }
       }
       setLoading(false)
       setInitialized(true)
@@ -74,9 +75,20 @@ export function useAuth() {
   const { user, isLoading, signOut: clearUser, setUser } = useAuthStore()
 
   async function login({ email, password }: LoginCredentials) {
-    // Demo mode — skip Firebase, inject mock user
-    if (isDemoMode()) {
-      const demoUser = { ...DEMO_USER, email }
+    // Demo mode OR @demo.test email — skip Firebase, inject mock user
+    const account = getDemoAccountByEmail(email)
+    if (isDemoMode() || email.endsWith('@demo.test')) {
+      const demoUser: AuthUser = account
+        ? {
+            ...DEMO_USER,
+            uid:          `demo-uid-${account.industryType}`,
+            email:        account.email,
+            displayName:  account.displayName,
+            businessId:   `demo-biz-${account.industryType}`,
+            plan:         'enterprise',
+            industryType: account.industryType,
+          }
+        : { ...DEMO_USER, email }
       setUser(demoUser)
       return demoUser
     }
@@ -84,6 +96,7 @@ export function useAuth() {
     const cred = await signInWithEmailAndPassword(auth, email, password)
     const snap = await getDoc(doc(db, COLLECTIONS.USERS, cred.user.uid))
     const extra = snap.exists() ? snap.data() : {}
+    if (!extra.businessId) extra.businessId = `biz_${cred.user.uid}`
     const mapped = mapFirebaseUser(cred.user, extra as Partial<AuthUser>)
     setUser(mapped)
     return mapped

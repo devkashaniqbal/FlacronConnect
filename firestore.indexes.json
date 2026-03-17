@@ -31,13 +31,6 @@
         { "fieldPath": "periodEnd",   "order": "DESCENDING" },
         { "fieldPath": "periodStart", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "attendance",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

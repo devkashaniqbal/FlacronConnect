@@ -3,13 +3,14 @@ import { motion } from 'framer-motion'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { FileText, Download, Plus, Search, Trash2, FileEdit } from 'lucide-react'
+import { FileText, Download, Plus, Search, Trash2, FileEdit, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Spinner } from '@/components/ui'
 import { Input } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { useInvoices } from '@/hooks/useInvoices'
+import { useAuthStore } from '@/store/authStore'
 import { useIndustryFeature } from '@/hooks/useIndustryTemplate'
 import type { Invoice } from '@/types/payment.types'
 
@@ -37,6 +38,7 @@ type FormData = z.infer<typeof schema>
 
 export function InvoicesPage() {
   const { invoices, isLoading, createInvoice, updateStatus, downloadPDF, isCreating } = useInvoices()
+  const businessId = useAuthStore(s => s.user?.businessId)
   const hasQuoteToInvoice = useIndustryFeature('quoteToInvoice')
   const [search, setSearch]     = useState('')
   const [showNew, setShowNew]   = useState(false)
@@ -68,6 +70,13 @@ export function InvoicesPage() {
     reset()
     setSaveAsQuote(false)
     setShowNew(false)
+  }
+
+  function shareInvoice(id: string) {
+    const url = `${window.location.origin}/invoice/${businessId}/${id}`
+    navigator.clipboard.writeText(url)
+      .then(() => toast.success('Share link copied!'))
+      .catch(() => toast.error('Failed to copy link'))
   }
 
   async function convertQuoteToInvoice(id: string) {
@@ -182,6 +191,13 @@ export function InvoicesPage() {
                             Mark Paid
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<Share2 size={13} />}
+                          onClick={() => shareInvoice(inv.id!)}
+                          title="Copy share link"
+                        />
                         <Button
                           size="sm"
                           variant="ghost"

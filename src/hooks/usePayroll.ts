@@ -1,9 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import {
   fetchCollection, createDoc, updateDocById,
   subColPath, where, orderBy,
 } from '@/lib/firestore'
+import { useRealtimeCollection } from '@/hooks/useRealtimeCollection'
 import { SUB_COLLECTIONS } from '@/constants/firestore'
 import type { AttendanceRecord, Employee, PayrollSummary } from '@/types/employee.types'
 
@@ -11,18 +12,16 @@ const TAX_RATE = 0.15  // 15% flat tax
 
 export function usePayroll() {
   const businessId = useAuthStore(s => s.user?.businessId) ?? ''
-  const qc = useQueryClient()
-
   // Payroll records stored as a sub-collection
   const payrollPath    = subColPath(businessId, 'payroll')
   const attendancePath = subColPath(businessId, SUB_COLLECTIONS.ATTENDANCE)
   const employeePath   = subColPath(businessId, SUB_COLLECTIONS.EMPLOYEES)
 
-  const { data: payrolls = [], isLoading } = useQuery({
-    queryKey: ['payroll', businessId],
-    queryFn:  () => fetchCollection<PayrollSummary>(payrollPath, [orderBy('periodEnd', 'desc')]),
-    enabled:  !!businessId,
-  })
+  const { data: payrolls, isLoading } = useRealtimeCollection<PayrollSummary>(
+    payrollPath,
+    [orderBy('periodEnd', 'desc')],
+    !!businessId,
+  )
 
   // Run payroll for a period
   const runPayrollMutation = useMutation({
@@ -69,13 +68,13 @@ export function usePayroll() {
       }
       return results
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['payroll', businessId] }),
+    onSuccess: () => {},   // real-time subscription auto-updates
   })
 
   // Mark payroll as paid
   const markPaidMutation = useMutation({
     mutationFn: (id: string) => updateDocById(payrollPath, id, { status: 'paid' }),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['payroll', businessId] }),
+    onSuccess:  () => {},  // real-time subscription auto-updates
   })
 
   return {

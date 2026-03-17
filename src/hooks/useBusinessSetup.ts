@@ -5,10 +5,12 @@ import { db } from '@/lib/firebase'
 import { useAuthStore } from '@/store/authStore'
 import {
   fetchCollection, createDoc, updateDocById, deleteDocById,
-  subColPath, businessPath, orderBy,
+  subColPath, orderBy,
 } from '@/lib/firestore'
 import { COLLECTIONS, SUB_COLLECTIONS } from '@/constants/firestore'
 import type { Business, Service, BusinessHours } from '@/types/business.types'
+
+const isDemoId = (id: string) => id.includes('demo-biz-') || id.includes('demo-uid-')
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
@@ -29,20 +31,20 @@ export function useBusinessSetup() {
   const [bizLoading, setBizLoading] = useState(true)
 
   useEffect(() => {
-    if (!businessId) { setBizLoading(false); return }
-    getDoc(doc(db, COLLECTIONS.BUSINESSES, businessId)).then(snap => {
-      if (snap.exists()) setBusiness({ id: snap.id, ...snap.data() } as Business)
-      setBizLoading(false)
-    })
+    if (!businessId || isDemoId(businessId)) { setBizLoading(false); return }
+    getDoc(doc(db, COLLECTIONS.BUSINESSES, businessId))
+      .then(snap => { if (snap.exists()) setBusiness({ id: snap.id, ...snap.data() } as Business) })
+      .catch(() => {})
+      .finally(() => setBizLoading(false))
   }, [businessId])
 
   const saveBusiness = async (data: Partial<Business>) => {
-    if (!businessId) return
+    if (!businessId || isDemoId(businessId)) return
     await setDoc(
       doc(db, COLLECTIONS.BUSINESSES, businessId),
       { ...data, ownerId: user?.uid, updatedAt: serverTimestamp() },
       { merge: true }
-    )
+    ).catch(() => {})
     setBusiness(prev => ({ ...(prev ?? {} as Business), ...data }))
   }
 

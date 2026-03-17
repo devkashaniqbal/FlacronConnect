@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CreditCard, TrendingUp, ArrowUpRight, ExternalLink, Check } from 'lucide-react'
+import { CreditCard, TrendingUp, ArrowUpRight, ExternalLink, Check, AlertCircle, Clock, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Spinner } from '@/components/ui'
@@ -23,10 +23,33 @@ export function PaymentsPage() {
   const { invoices, isLoading: invLoading } = useInvoices()
   const { bookings, isLoading: bLoading }   = useBookings()
 
-  // Real monthly revenue from paid bookings
+  const currentMonth = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
+
+  const toDateStr = (d: unknown): string => {
+    if (typeof d === 'string') return d
+    if (d && typeof (d as { toDate?: () => Date }).toDate === 'function')
+      return (d as { toDate: () => Date }).toDate().toISOString().split('T')[0]
+    if (d instanceof Date) return d.toISOString().split('T')[0]
+    return ''
+  }
+
+  // Revenue from paid bookings THIS month
   const monthRevenue = bookings
+    .filter(b => b.paymentStatus === 'paid' && toDateStr(b.date).startsWith(currentMonth))
+    .reduce((s, b) => s + (b.amount ?? 0), 0)
+
+  // All-time paid revenue
+  const totalRevenue = bookings
     .filter(b => b.paymentStatus === 'paid')
     .reduce((s, b) => s + (b.amount ?? 0), 0)
+
+  // Invoice stats
+  const paidInvoices     = invoices.filter(i => i.status === 'paid')
+  const outstandingInvs  = invoices.filter(i => i.status === 'sent' || i.status === 'draft')
+  const overdueInvs      = invoices.filter(i => i.status === 'overdue')
+  const outstandingTotal = outstandingInvs.reduce((s, i) => s + (i.total ?? 0), 0)
+  const overdueTotal     = overdueInvs.reduce((s, i) => s + (i.total ?? 0), 0)
+  const paidTotal        = paidInvoices.reduce((s, i) => s + (i.total ?? 0), 0)
 
   // Real recent transactions from invoices (latest 5)
   const recentTransactions = [...invoices]
@@ -145,7 +168,7 @@ export function PaymentsPage() {
 
         {/* Revenue summary */}
         <Card>
-          <p className="text-sm font-medium text-ink-500 dark:text-ink-400 mb-1">Monthly Revenue</p>
+          <p className="text-sm font-medium text-ink-500 dark:text-ink-400 mb-1">This Month Revenue</p>
           {bLoading
             ? <div className="h-9 w-28 bg-ink-100 dark:bg-ink-800 animate-pulse rounded mb-2" />
             : <p className="font-display font-bold text-3xl text-ink-900 dark:text-white mb-2">{formatCurrency(monthRevenue)}</p>
@@ -166,6 +189,67 @@ export function PaymentsPage() {
             View Stripe Dashboard
           </Button>
         </Card>
+      </div>
+
+      {/* Financial overview */}
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        {[
+          {
+            label: 'Total Revenue',
+            value: formatCurrency(totalRevenue),
+            sub: 'All-time paid bookings',
+            icon: DollarSign,
+            color: 'from-emerald-500 to-emerald-600',
+            loading: bLoading,
+          },
+          {
+            label: 'Paid Invoices',
+            value: formatCurrency(paidTotal),
+            sub: `${paidInvoices.length} invoice${paidInvoices.length !== 1 ? 's' : ''}`,
+            icon: Check,
+            color: 'from-brand-500 to-brand-600',
+            loading: invLoading,
+          },
+          {
+            label: 'Outstanding',
+            value: formatCurrency(outstandingTotal),
+            sub: `${outstandingInvs.length} awaiting payment`,
+            icon: Clock,
+            color: 'from-amber-500 to-amber-600',
+            loading: invLoading,
+          },
+          {
+            label: 'Overdue',
+            value: formatCurrency(overdueTotal),
+            sub: `${overdueInvs.length} overdue invoice${overdueInvs.length !== 1 ? 's' : ''}`,
+            icon: AlertCircle,
+            color: 'from-red-500 to-red-600',
+            loading: invLoading,
+          },
+        ].map((card, i) => {
+          const Icon = card.icon
+          return (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.07 }}
+              className="card p-5"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider">{card.label}</p>
+                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center`}>
+                  <Icon size={16} className="text-white" />
+                </div>
+              </div>
+              {card.loading
+                ? <div className="h-7 w-24 bg-ink-100 dark:bg-ink-800 animate-pulse rounded" />
+                : <p className="font-display font-bold text-2xl text-ink-900 dark:text-white">{card.value}</p>
+              }
+              <p className="text-xs text-ink-400 mt-1">{card.sub}</p>
+            </motion.div>
+          )
+        })}
       </div>
 
       {/* Plan selector */}

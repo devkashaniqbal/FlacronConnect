@@ -15,6 +15,7 @@ export const ROUTES = {
   PAYROLL:          '/app/payroll',
   PAYMENTS:         '/app/payments',
   INVOICES:         '/app/invoices',
+  ANALYTICS:        '/app/analytics',
   VOICE_AGENT:      '/app/voice-agent',
   NOTIFICATIONS:    '/app/notifications',
   SETTINGS:         '/app/settings',
@@ -43,6 +44,8 @@ export const ROUTES = {
   RETAINERS:        '/app/retainers',         // Consulting
   PATIENT_RECORDS:  '/app/patient-records',   // Medical
   INTAKE_FORMS:     '/app/intake-forms',      // Medical
+
+  INVOICE_VIEW:     '/invoice/:businessId/:invoiceId',
 
   ADMIN_BUSINESSES: '/admin/businesses',
   ADMIN_USERS:      '/admin/users',

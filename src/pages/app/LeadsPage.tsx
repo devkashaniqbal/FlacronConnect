@@ -8,6 +8,7 @@ import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Input, Spinner } from '@/components/ui'
+import { LocationPicker } from '@/components/common/LocationPicker'
 import { formatCurrency } from '@/utils/formatters'
 import { useLeads, type LeadStage, type LeadSource } from '@/hooks/useLeads'
 import { useEmployees } from '@/hooks/useEmployees'
@@ -43,7 +44,7 @@ export function LeadsPage() {
   const [showNew, setShowNew]     = useState(false)
   const [activeStage, setActiveStage] = useState<LeadStage | 'all'>('all')
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { stage: 'new', source: 'other' },
   })
@@ -168,7 +169,12 @@ export function LeadsPage() {
             <Input label="Email" type="email" placeholder="john@example.com" {...register('email')} />
             <Input label="Est. property value ($)" type="number" step="1000" placeholder="350000" {...register('estimatedValue')} />
             <div className="col-span-2">
-              <Input label="Property address" placeholder="123 Main St, City" {...register('propertyAddress')} />
+              <LocationPicker
+                label="Property address"
+                placeholder="Pick on map or type address…"
+                value={watch('propertyAddress') ?? ''}
+                onChange={v => setValue('propertyAddress', v)}
+              />
             </div>
             <div>
               <label className="label">Stage</label>

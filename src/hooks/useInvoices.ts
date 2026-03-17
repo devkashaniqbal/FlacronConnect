@@ -1,11 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import jsPDF from 'jspdf'
 import { useAuthStore } from '@/store/authStore'
 import { useBusinessStore } from '@/store/businessStore'
 import {
-  fetchCollection, createDoc, updateDocById,
+  createDoc, updateDocById,
   subColPath, orderBy,
 } from '@/lib/firestore'
+import { useRealtimeCollection } from '@/hooks/useRealtimeCollection'
 import { SUB_COLLECTIONS } from '@/constants/firestore'
 import type { Invoice, InvoiceItem } from '@/types/payment.types'
 
@@ -244,14 +245,13 @@ export function useInvoices() {
   const businessId  = useAuthStore(s => s.user?.businessId) ?? ''
   const businessName = useAuthStore(s => s.user?.displayName) ?? 'My Business'
   const business    = useBusinessStore(s => s.business)
-  const qc = useQueryClient()
   const path = subColPath(businessId, SUB_COLLECTIONS.INVOICES)
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['invoices', businessId],
-    queryFn:  () => fetchCollection<Invoice>(path, [orderBy('createdAt', 'desc')]),
-    enabled:  !!businessId,
-  })
+  const { data: invoices, isLoading } = useRealtimeCollection<Invoice>(
+    path,
+    [orderBy('createdAt', 'desc')],
+    !!businessId,
+  )
 
   const createMutation = useMutation({
     mutationFn: async (data: {
@@ -275,13 +275,13 @@ export function useInvoices() {
         pdfUrl: null,
       })
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices', businessId] }),
+    onSuccess: () => {},   // real-time subscription auto-updates
   })
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Invoice['status'] }) =>
       updateDocById(path, id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices', businessId] }),
+    onSuccess: () => {},   // real-time subscription auto-updates
   })
 
   const downloadPDF = (invoice: Invoice) => {

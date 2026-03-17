@@ -40,7 +40,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { key: 'payroll',        icon: DollarSign,      label: 'Payroll',       href: ROUTES.PAYROLL },
   { key: 'payments',       icon: CreditCard,      label: 'Payments',      href: ROUTES.PAYMENTS },
   { key: 'invoices',       icon: FileText,        label: 'Invoices',      href: ROUTES.INVOICES },
-  { key: 'analytics',      icon: BarChart3,       label: 'Analytics',     href: '#analytics' },
+  { key: 'analytics',      icon: BarChart3,       label: 'Analytics',     href: ROUTES.ANALYTICS },
   { key: 'notifications',  icon: Bell,            label: 'Notifications', href: ROUTES.NOTIFICATIONS },
   { key: 'settings',       icon: Settings,        label: 'Settings',      href: ROUTES.SETTINGS },
 

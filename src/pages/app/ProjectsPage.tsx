@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { Card, Button, Badge, Modal, Input, Spinner } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { LocationPicker } from '@/components/common/LocationPicker'
 import { useProjects, useMilestones, type ProjectStatus, type Milestone } from '@/hooks/useProjects'
 import { useInvoices } from '@/hooks/useInvoices'
 import { useIndustryFeature } from '@/hooks/useIndustryTemplate'
@@ -177,7 +178,7 @@ export function ProjectsPage() {
   const [filter, setFilter]       = useState<ProjectStatus | 'all'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
@@ -347,7 +348,12 @@ export function ProjectsPage() {
             <Input label="Start date" type="date" {...register('startDate')} />
             <Input label="End date" type="date" {...register('endDate')} />
             <div className="col-span-2">
-              <Input label="Job site address" placeholder="123 Main St" {...register('address')} />
+              <LocationPicker
+                label="Job site address"
+                placeholder="Pick on map or type address…"
+                value={watch('address') ?? ''}
+                onChange={v => setValue('address', v)}
+              />
             </div>
             <div className="col-span-2">
               <Input label="Description (optional)" placeholder="Scope of work…" {...register('description')} />

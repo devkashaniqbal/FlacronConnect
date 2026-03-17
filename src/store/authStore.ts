@@ -31,6 +31,13 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'flacron-auth',
       partialize: state => ({ user: state.user }),
+      // On rehydrate: discard any persisted user that has no businessId —
+      // onAuthStateChanged will set the correct value moments later.
+      onRehydrateStorage: () => (state) => {
+        if (state?.user && !state.user.businessId) {
+          state.user = null
+        }
+      },
     }
   )
 )

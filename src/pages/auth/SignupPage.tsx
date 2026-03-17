@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, User, Phone, Building2, MapPin, Check } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, Phone, Building2, Check } from 'lucide-react'
+import { LocationPicker } from '@/components/common/LocationPicker'
 import toast from 'react-hot-toast'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -295,18 +296,29 @@ export function SignupPage() {
             {/* Step 3 – Location */}
             {step === 3 && (
               <>
-                <Input label="Street address" placeholder="123 Main St" icon={<MapPin size={16} />}
+                <LocationPicker
+                  label="Business location"
+                  placeholder="Search or click map to set address…"
+                  value={(watch as (k: string) => string)('address') ?? ''}
+                  onChange={v => setValue('address' as never, v as never)}
+                  onParts={parts => {
+                    setValue('address' as never, parts.address as never)
+                    setValue('city'    as never, parts.city    as never)
+                    setValue('state'   as never, parts.state   as never)
+                    setValue('country' as never, parts.country as never)
+                  }}
                   error={(errors as Record<string, { message?: string }>).address?.message}
-                  {...register('address')} />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="City" placeholder="New York"
+                />
+                {/* Hidden but validated fields — shown as read-only after map pick */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="City" placeholder="Auto-filled from map"
                     error={(errors as Record<string, { message?: string }>).city?.message}
                     {...register('city')} />
-                  <Input label="State / Province" placeholder="NY"
+                  <Input label="State / Province" placeholder="Auto-filled"
                     error={(errors as Record<string, { message?: string }>).state?.message}
                     {...register('state')} />
                 </div>
-                <Input label="Country" placeholder="United States"
+                <Input label="Country" placeholder="Auto-filled from map"
                   error={(errors as Record<string, { message?: string }>).country?.message}
                   {...register('country')} />
               </>
