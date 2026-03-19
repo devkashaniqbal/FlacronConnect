@@ -119,18 +119,18 @@ In Render dashboard → `flacron-frontend` → **Environment** tab, add:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `VITE_FIREBASE_API_KEY` | `AIzaSyDNXPtapm9B4QX5zMqfOf5lRLIovCbp_I8` | Firebase config |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `flacroncontrol.firebaseapp.com` | Firebase config |
-| `VITE_FIREBASE_PROJECT_ID` | `flacroncontrol` | Firebase config |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `flacroncontrol.firebasestorage.app` | Firebase config |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `29609290916` | Firebase config |
-| `VITE_FIREBASE_APP_ID` | `1:29609290916:web:ed7b0700acf9d9d66e4a31` | Firebase config |
-| `VITE_FIREBASE_MEASUREMENT_ID` | `G-CMR0KZFF35` | Optional — Analytics |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_51T6dtW...` | From Stripe Dashboard |
+| `VITE_FIREBASE_API_KEY` | `YOUR_FIREBASE_API_KEY` | Firebase config — from Firebase Console |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `your-project.firebaseapp.com` | Firebase config |
+| `VITE_FIREBASE_PROJECT_ID` | `your-project-id` | Firebase config |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `your-project.firebasestorage.app` | Firebase config |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `YOUR_SENDER_ID` | Firebase config |
+| `VITE_FIREBASE_APP_ID` | `YOUR_FIREBASE_APP_ID` | Firebase config |
+| `VITE_FIREBASE_MEASUREMENT_ID` | `YOUR_MEASUREMENT_ID` | Optional — Analytics |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | From Stripe Dashboard |
 | `VITE_OPENAI_API_KEY` | `sk-proj-...` | From OpenAI Platform |
-| `VITE_WATSONX_API_KEY` | `mIC8vqaK...` | From IBM Cloud |
+| `VITE_WATSONX_API_KEY` | `YOUR_WATSONX_API_KEY` | From IBM Cloud |
 | `VITE_WATSONX_URL` | `https://us-south.ml.cloud.ibm.com` | IBM WatsonX |
-| `VITE_WATSONX_PROJECT_ID` | `87ccf9e5-6957-4f9d-9982-04ec2df1345a` | IBM WatsonX |
+| `VITE_WATSONX_PROJECT_ID` | `YOUR_WATSONX_PROJECT_ID` | IBM WatsonX |
 | `VITE_GOOGLE_MAPS_API_KEY` | *(leave blank or add key)* | Optional — Route Planning |
 | `VITE_APP_URL` | `https://your-app.onrender.com` | Your Render frontend URL |
 
@@ -319,18 +319,18 @@ git push origin main
 ### Frontend (Render Static Site)
 
 ```env
-VITE_FIREBASE_API_KEY=AIzaSyDNXPtapm9B4QX5zMqfOf5lRLIovCbp_I8
-VITE_FIREBASE_AUTH_DOMAIN=flacroncontrol.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=flacroncontrol
-VITE_FIREBASE_STORAGE_BUCKET=flacroncontrol.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=29609290916
-VITE_FIREBASE_APP_ID=1:29609290916:web:ed7b0700acf9d9d66e4a31
-VITE_FIREBASE_MEASUREMENT_ID=G-CMR0KZFF35
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51T6dtW...
+VITE_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=YOUR_SENDER_ID
+VITE_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 VITE_OPENAI_API_KEY=sk-proj-...
-VITE_WATSONX_API_KEY=mIC8vqaK...
+VITE_WATSONX_API_KEY=YOUR_WATSONX_API_KEY
 VITE_WATSONX_URL=https://us-south.ml.cloud.ibm.com
-VITE_WATSONX_PROJECT_ID=87ccf9e5-6957-4f9d-9982-04ec2df1345a
+VITE_WATSONX_PROJECT_ID=YOUR_WATSONX_PROJECT_ID
 VITE_APP_URL=https://your-app.onrender.com
 ```
 
